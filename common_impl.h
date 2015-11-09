@@ -32,3 +32,4 @@ typedef struct dsm_proc dsm_proc_t;
 int creer_socket(int type, int *port_num);
 int count_process_nb(char * machine_file);
 dsm_proc_t* machine_names(char * name_file, int process_nb);
+int do_socket(int domain, int type, int protocol);
