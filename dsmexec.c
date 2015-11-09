@@ -18,8 +18,15 @@ void usage(void)
 
 void sigchld_handler(int sig)
 {
-   /* on traite les fils qui se terminent */
-   /* pour eviter les zombies */
+	/* on traite les fils qui se terminent */
+	/* pour eviter les zombies */
+
+	int ret;
+   
+	// Gestion du risque de recevoir plusieurs signaux
+	do {
+		ret = waitpid(0, NULL, WNOHANG);
+	} while(ret > 0);
 }
 
 int main(int argc, char *argv[])
@@ -30,11 +37,13 @@ int main(int argc, char *argv[])
      pid_t pid;
      int num_procs = 0;
      int i;
-     fd_set readset;
+	struct sigaction sigact;
      int result;
-     
-     /* Mise en place d'un traitant pour recuperer les fils zombies*/      
-     /* XXX.sa_handler = sigchld_handler; */*
+	
+     /* Mise en place d'un traitant pour recuperer les fils zombies*/    
+	memset(&sigact, 0, sizeof(struct sigaction));
+	sigact.sa_handler = &sigchld_handler;
+	sigaction(SIGCHLD, &sigact, NULL);
      
      /* lecture du fichier de machines */
      /* 1- on recupere le nombre de processus a lancer */
