@@ -77,3 +77,52 @@ int do_socket(int domain, int type, int protocol) {
 
     return sockfd;
 }
+
+/* fonction do_socket */
+/* créer une socket */
+int do_socket(int domain, int type, int protocol) {
+	
+    int sockfd;
+    int yes = 1;
+
+    // Creation de la socket client
+	sockfd = socket(domain, type, protocol);
+
+	// Set socket options
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, 
+													sizeof(int)) == -1)
+        error("ERROR setting socket options\n");
+
+    return sockfd;
+}
+
+/* foncton do_connect */
+/* ask for connexion */
+int do_connect(int socket, struct sockaddr_in serv_add) {
+	
+	int conn = connect(socket, (struct sockaddr *) &serv_add, sizeof(struct sockaddr));
+	
+	if (conn == -1) {
+		error("Voici l'erreur concernant la connexion ");
+	}
+	
+	printf("Connexion réussie (%i), bienvenue sur le tchat.\n\n", conn);
+	
+	return conn;
+}
+
+/* Message sending */
+// modification l'input : char * -> const void *
+void handle_message(int socket, const void *input, int taille) {
+	
+	int offset = 0;
+	
+	do {
+		offset = send(socket, input + offset, taille - offset, 0);
+		
+		if (offset == -1) {
+			error("Voici l'erreur concernant l'envoi ");
+		}
+	}
+	while (offset!=taille);
+}
