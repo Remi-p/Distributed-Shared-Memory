@@ -22,7 +22,6 @@ void sigchld_handler(int sig)
    /* pour eviter les zombies */
 }
 
-
 int main(int argc, char *argv[])
 {
   if (argc < 3){
@@ -37,8 +36,11 @@ int main(int argc, char *argv[])
      
      /* lecture du fichier de machines */
      /* 1- on recupere le nombre de processus a lancer */
+     num_procs = count_process_nb("machine_file");
+     
      /* 2- on recupere les noms des machines : le nom de */
      /* la machine est un des elements d'identification */
+     proc_array = machine_names("machine_file", num_procs);
      
      /* creation de la socket d'ecoute */
      /* + ecoute effective */ 

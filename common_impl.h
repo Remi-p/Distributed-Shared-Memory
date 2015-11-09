@@ -16,6 +16,7 @@
 /* de connexion des processus dsm */
 struct dsm_proc_conn  {
    int rank;
+   char * machine_name;
    /* a completer */
 };
 typedef struct dsm_proc_conn dsm_proc_conn_t; 
@@ -29,3 +30,5 @@ struct dsm_proc {
 typedef struct dsm_proc dsm_proc_t;
 
 int creer_socket(int type, int *port_num);
+int count_process_nb(char * machine_file);
+dsm_proc_t* machine_names(char * name_file, int process_nb);
