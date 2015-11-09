@@ -12,6 +12,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#define VERBOSE 1
+
 /* autres includes (eventuellement) */
 
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}
