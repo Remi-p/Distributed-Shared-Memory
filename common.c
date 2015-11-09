@@ -59,3 +59,21 @@ dsm_proc_t* machine_names(char * name_file, int process_nb) {
 	return proc_array;
 	
 }
+
+/* fonction do_socket */
+/* créer une socket */
+int do_socket(int domain, int type, int protocol) {
+	
+    int sockfd;
+    int yes = 1;
+
+    // Creation de la socket client
+	sockfd = socket(domain, type, protocol);
+
+	// Set socket options
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, 
+													sizeof(int)) == -1)
+        error("ERROR setting socket options");
+
+    return sockfd;
+}

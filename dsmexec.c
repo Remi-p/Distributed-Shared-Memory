@@ -30,9 +30,11 @@ int main(int argc, char *argv[])
      pid_t pid;
      int num_procs = 0;
      int i;
+     fd_set readset;
+     int result;
      
      /* Mise en place d'un traitant pour recuperer les fils zombies*/      
-     /* XXX.sa_handler = sigchld_handler; */
+     /* XXX.sa_handler = sigchld_handler; */*
      
      /* lecture du fichier de machines */
      /* 1- on recupere le nombre de processus a lancer */
@@ -43,7 +45,23 @@ int main(int argc, char *argv[])
      proc_array = machine_names("machine_file", num_procs);
      
      /* creation de la socket d'ecoute */
-     /* + ecoute effective */ 
+     int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+     
+     /* + ecoute effective */
+     while(1) {
+		FD_ZERO(&readset);
+		FD_SET(listen_socket, &readset);
+		result = select(sock_client + 1, &readset, NULL, NULL, NULL);
+		
+		if (result > 0) {
+			if (FD_ISSET(listen_socket, &readset)) {
+			/*
+			 * S'il y a une activit sur la socket
+			 * 
+			 * /
+			} 
+		}
+	 }
      
      /* creation des fils */
      for(i = 0; i < num_procs ; i++) {
