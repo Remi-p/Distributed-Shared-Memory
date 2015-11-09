@@ -38,6 +38,10 @@ int main(int argc, char *argv[])
      int num_procs = 0;
      int i;
 	struct sigaction sigact;
+	// Tubes pour stdout et stderr
+	int fd_stdout[2]; 	// fd_stdout[0] : extremité en lecture
+						// fd_stdout[1] : extremité en écriture
+	int fd_stderr[2];
 	
      /* Mise en place d'un traitant pour recuperer les fils zombies*/    
 	memset(&sigact, 0, sizeof(struct sigaction));
@@ -59,17 +63,29 @@ int main(int argc, char *argv[])
      for(i = 0; i < num_procs ; i++) {
 	
 	/* creation du tube pour rediriger stdout */
+	pipe(fd_stdout);
 	
 	/* creation du tube pour rediriger stderr */
+	pipe(fd_stderr);
 	
 	pid = fork();
 	if(pid == -1) ERROR_EXIT("fork");
 	
 	if (pid == 0) { /* fils */	
 	   
-	   /* redirection stdout */	      
+	   /* redirection stdout */
+		close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
+		
+		close(STDOUT_FILENO);		 // On remplace stdout par fd[1]
+		dup(fd_stdout[1]);
+		close(fd_stdout[1]);
 	   
-	   /* redirection stderr */	      	      
+	   /* redirection stderr */	  
+		close(fd_stderr[0]);
+		
+		close(STDERR_FILENO);
+		dup(fd_stderr[1]);
+		close(fd_stderr[1]);
 	   
 	   /* Creation du tableau d'arguments pour le ssh */ 
 	   
@@ -78,6 +94,12 @@ int main(int argc, char *argv[])
 
 	} else  if(pid > 0) { /* pere */		      
 	   /* fermeture des extremites des tubes non utiles */
+	   
+		// Fermeture de l'extremité d'écriture, puisqu'on souhaite lire.
+		close(fd_stderr[1]);
+		close(fd_stdout[1]);
+		// TODO : Fermeture des autres extrémités non utilisées
+		
 	   num_procs_creat++;	      
 	}
      }
