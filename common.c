@@ -78,22 +78,14 @@ int do_socket(int domain, int type, int protocol) {
     return sockfd;
 }
 
-/* fonction do_socket */
-/* créer une socket */
-int do_socket(int domain, int type, int protocol) {
+// Création du bind
+void do_bind(int socket, struct sockaddr_in* serv_add) {
 	
-    int sockfd;
-    int yes = 1;
-
-    // Creation de la socket client
-	sockfd = socket(domain, type, protocol);
-
-	// Set socket options
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, 
-													sizeof(int)) == -1)
-        error("ERROR setting socket options\n");
-
-    return sockfd;
+	int bindtmp = bind(socket, (struct sockaddr *) serv_add, sizeof(struct sockaddr));
+	
+	if (bindtmp == -1) {
+		error("Voici l'erreur concernant la création du bind M. ");
+	}
 }
 
 /* foncton do_connect */
@@ -111,6 +103,62 @@ int do_connect(int socket, struct sockaddr_in serv_add) {
 	return conn;
 }
 
+// Ecoute d'un maximum de max machines
+void do_listen(int socket, int max) {
+	
+	int listen_return = listen(socket, max);
+	
+	if (listen_return == -1) {
+		error("Voici l'erreur concernant l'écoute ");
+	}
+}
+
+// Acceptation d'un client
+int do_accept(int sckt, struct sockaddr* adresse) {
+	
+	socklen_t length_client = sizeof(struct sockaddr);
+	
+	int sckt2 = accept(sckt, adresse, &length_client);
+	
+	if (sckt2 < 0) {
+		error("Voici l'erreur concernant l'acceptation : ");
+	}
+	//printf("Bienvenue sur le tchat de l'ambiance, vous possédez la socket n°%i\n", sckt2);
+	
+	return sckt2;
+}
+
+// Read les données envoyées
+// Retourne false si la socket est fermée
+bool do_read(int socket, void *output, int taille, enum code* code_ret) {
+	
+	// Ici on réceptionnera la chaîne de caractère + le code
+	void* msg_received = calloc( taille, 1 );
+	
+	// Le serveur attend l'envoi des données dans cette fonction (avec recv)
+	memset(output,0,taille);
+	
+	ssize_t offset = 0;
+
+	offset = recv(socket, msg_received + offset, taille - offset, 0);
+	
+	if (offset < 0)
+		error("Erreur de lecture ");
+		
+	// D'après `man recv` : "If no messages are available to be received
+	// and the peer has performed an orderly shutdown, recv() shall
+	// return 0." Dans ce cas, output doit être égale à /quit
+	else if (offset == 0) {
+		free(msg_received);
+		return false;
+	}
+	else {	
+		
+		free(msg_received);
+		return true;
+	}
+}
+
 /* Message sending */
 // modification l'input : char * -> const void *
 void handle_message(int socket, const void *input, int taille) {
@@ -125,4 +173,27 @@ void handle_message(int socket, const void *input, int taille) {
 		}
 	}
 	while (offset!=taille);
+}
+
+//init the self address structure
+// hostname can be NULL, we then use INADDR_ANY
+struct sockaddr_in* get_addr_info(int port, char* hostname) {
+	
+	//~ struct sockaddr_in sin;
+	//~ memset(&sin, 0, sizeof(struct sockaddr_in));
+	struct sockaddr_in* sin = malloc(sizeof(struct sockaddr_in));
+	
+	sin->sin_family=AF_INET;
+	sin->sin_port=htons(port);
+	
+	if (hostname == NULL)
+		sin->sin_addr.s_addr=INADDR_ANY; //Utiliser loopback
+		//sin.sin_addr.s_addr=inet_addr("127.0.0.1");
+	else
+		sin->sin_addr.s_addr = inet_addr(hostname);
+		
+	//printf("Port : %i / Addr : %i", sin.sin_port, sin.sin_addr.s_addr);
+	
+	return sin;
+
 }

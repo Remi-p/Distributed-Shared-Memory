@@ -7,8 +7,8 @@ int main(int argc, char **argv)
    /* a la commande a executer vraiment */
    int wrap_socket;
    int conn;
-   struct sockaddr_in launcher_addr, wrap_addr;
-   int launcher_ip_addr;
+   struct sockaddr_in *launcher_addr, *wrap_addr;
+   char * launcher_ip_addr;
    int launcher_port, wrap_port;
    int wrap_rank;
    
@@ -18,12 +18,12 @@ int main(int argc, char **argv)
    wrap_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
    
    // Récupération de la struct sock_addr du lanceur
-   launcher_ip_addr = atoi(argv[1]);
-   launcher_port = argv[2];
-   launcher_addr = get_addr_info(launcher_ip_addr, launcher_port);
+   launcher_ip_addr = argv[1];
+   launcher_port = atoi(argv[2]);
+   launcher_addr = get_addr_info(&launcher_port, launcher_ip_addr);
    
    // Connexion au lanceur
-   conn = do_connect(wrap_socket, launcher_addr);
+   conn = do_connect(wrap_socket, *launcher_addr);
    
    /* Envoi du nom de machine au lanceur */
    // VERIF : envoie du rang plutot
@@ -37,8 +37,9 @@ int main(int argc, char **argv)
 
    /* Envoi du numero de port au lanceur */
    // le systeme choisit le port
-   wrap_addr = get_addr_info("localhost", 0);
-   handle_message(wrap_socket, &wrap_addr.sin_port, sizeof(u_short));
+   wrap_addr = get_addr_info(0, "localhost");
+   wrap_port = wrap_addr->sin_port;
+   handle_message(wrap_socket, &wrap_port, sizeof(u_short));
    // VERIF : pas sur que ca marche d'envoyer un u_short
    
    /* pour qu'il le propage à tous les autres */

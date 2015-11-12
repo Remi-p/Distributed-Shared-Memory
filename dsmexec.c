@@ -32,7 +32,8 @@ int main(int argc, char *argv[]) {
 	if (argc < 3){
 		usage();
 	} else {
-		  
+		
+		enum code code_ret; // Code de retour
 		pid_t pid;
 		int num_procs = 0;
 		int i, j;
@@ -43,6 +44,7 @@ int main(int argc, char *argv[]) {
 		// fd_stdout[1] : extremité en écriture
 		int fd_stderr[2];
 		int result;
+		struct sockaddr* adr_tmp;
 
 		/* Mise en place d'un traitant pour recuperer les fils zombies*/    
 		memset(&sigact, 0, sizeof(struct sigaction));
@@ -61,21 +63,14 @@ int main(int argc, char *argv[]) {
 		/* creation de la socket d'ecoute */
 		int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-		/* + ecoute effective / TODO : Décommenter lorsque prête */
-		//~ while(1) {
-			//~ FD_ZERO(&readset);
-			//~ FD_SET(listen_socket, &readset);
-			//~ result = select(listen_socket + 1, &readset, NULL, NULL, NULL);
-//~ 
-			//~ if (result > 0) {
-				//~ if (FD_ISSET(listen_socket, &readset)) {
-				//~ /*
-				//~ * S'il y a une activité sur la socket
-				//~ * 
-				//~ */
-				//~ } 
-			//~ }
-		//~ }
+		// Initialisation de la structure sockaddr_in pour l'adresse du server
+		struct sockaddr_in* serv_add = get_addr_info( 0,"localhost"); // VERIF : pas sur du tout
+		
+		// On bind la socket sur le port TCP spécifié auparavant
+		do_bind(listen_socket, serv_add);
+		
+		/* + ecoute effective */
+		do_listen(listen_socket, num_procs);		
 
 		if (VERBOSE) printf("Boucle de création des fils\n");
 
@@ -147,15 +142,22 @@ int main(int argc, char *argv[]) {
 
 
 		for (i = 0; i < num_procs ; i++) {
-
+		
 			/* on accepte les connexions des processus dsm */
-
+			adr_tmp = malloc(sizeof(struct sockaddr));
+			do_accept(listen_socket, adr_tmp);
+			
 			/*  On recupere le nom de la machine distante */
 			/* 1- d'abord la taille de la chaine */
 			/* 2- puis la chaine elle-meme */
+			
+			// On récupère plutot le rang de la machine dans le tableau
+			// de la structure
+			int * rank_machine = NULL;
+			do_read(listen_socket, rank_machine, sizeof(int), &code_ret);
 
 			/* On recupere le pid du processus distant  */
-
+			
 			/* On recupere le numero de port de la socket */
 			/* d'ecoute des processus distants */
 		}
