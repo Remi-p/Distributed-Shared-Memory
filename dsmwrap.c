@@ -46,5 +46,14 @@ int main(int argc, char **argv)
    /* processus dsm */
 
    /* on execute la bonne commande */
+   
+   short int i= 0;
+   
+   for (i = 0; i <= argc; i++) {
+	   fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
+   }
+   
+   fprintf(stdout, "Bonjour à tous !\n");
+   
    return 0;
 }

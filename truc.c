@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
    int fd;
    int i;
    char str[1024];
-   char exec_path[1024];   
+   char exec_path[1024];
    char *wd_ptr = NULL;
    
    wd_ptr = getcwd(str,1024);

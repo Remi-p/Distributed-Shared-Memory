@@ -27,21 +27,43 @@ void sigchld_handler(int sig) {
 	} while(ret > 0);
 }
 
+void lecture_tube(int fd, char * buffer) {
+	
+	off_t off = 0;
+	
+	do {
+		off = read(fd, buffer, BUFFER_MAX + 1);
+		
+		if (off == -1 && errno != EINTR )
+			error("Erreur de lecture d'un tube ");
+		
+		// Si on a été interrompu par le système, on recommence !
+		if (errno == EINTR)
+			off = 1;
+		else
+			fprintf(stdout, "%s", buffer);
+	} while (off > 0);
+	
+}
+
 int main(int argc, char *argv[]) {
 	
 	if (argc < 3){
 		usage();
 	} else {
 		
+<<<<<<< Updated upstream
 		enum code code_ret; // Code de retour
+=======
+		// Définition des variables ====================================
+>>>>>>> Stashed changes
 		pid_t pid;
 		int num_procs = 0;
 		int i, j;
-		fd_set readset;
 		struct sigaction sigact;
-		// Tubes pour stdout et stderr
+		// Variables temporaires pour les tubes pour stdout et stderr
 		int fd_stdout[2]; 	// fd_stdout[0] : extremité en lecture
-		// fd_stdout[1] : extremité en écriture
+							// fd_stdout[1] : extremité en écriture
 		int fd_stderr[2];
 		int result;
 		struct sockaddr* adr_tmp;
@@ -50,6 +72,16 @@ int main(int argc, char *argv[]) {
 		memset(&sigact, 0, sizeof(struct sigaction));
 		sigact.sa_handler = &sigchld_handler;
 		sigaction(SIGCHLD, &sigact, NULL);
+		
+		// Variables liées au select -----------------------------------
+		// Ici on stockera tous les descripteurs de fichier pour les
+		// tubes
+		fd_set readset;
+		// Necessaire pour le select
+		int plus_grd_tube;
+		// Buffer de réception des tubes
+		char buffer[BUFFER_MAX];
+		memset(buffer, 0, BUFFER_MAX * sizeof(char));
 
 		/* lecture du fichier de machines */
 		/* 1- on recupere le nombre de processus a lancer */
@@ -63,6 +95,7 @@ int main(int argc, char *argv[]) {
 		/* creation de la socket d'ecoute */
 		int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
+<<<<<<< Updated upstream
 		// Initialisation de la structure sockaddr_in pour l'adresse du server
 		struct sockaddr_in* serv_add = get_addr_info( 0,"localhost"); // VERIF : pas sur du tout
 		
@@ -71,9 +104,12 @@ int main(int argc, char *argv[]) {
 		
 		/* + ecoute effective */
 		do_listen(listen_socket, num_procs);		
+=======
+		/* + ecoute effective */
+>>>>>>> Stashed changes
 
 		if (VERBOSE) printf("Boucle de création des fils\n");
-
+				
 		/* creation des fils */
 		for(i = 0; i < num_procs ; i++) {
 
@@ -105,28 +141,34 @@ int main(int argc, char *argv[]) {
 				close(fd_stderr[1]);
 
 				/* Creation du tableau d'arguments pour le ssh */ 
-				if (VERBOSE) printf("Création du tableau d'arguments pour le ssh\n");
+				// if (VERBOSE) printf("Création du tableau d'arguments pour le ssh\n");
 
-				// 4 = Nombre d'arguments ci-avant
+				// 6 = Nombre d'arguments ci-après
 				// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
-				// -2 = On enlève [le nom de fichier & le nom du fichier machine] des arguments
-				char **newargv = malloc(sizeof(char *) * (4 + argc - 2));
+				// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
+				// 1 = Dernier élement, = NULL
+				char **newargv = malloc(sizeof(char *) * (6 + argc - 2 + 1));
 
-				newargv[0] = "NOM_MACHINE"; // TODO
-				newargv[1] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
-				newargv[2] = "IP_DU_SERVEUR"; // TODO
-				newargv[3] = "PORT_DU_SERVEUR"; // TODO
-				newargv[4] = "RANG_DU_PROCESS_DISTANT"; // TODO
+				newargv[0] = "ssh";
+				newargv[1] = proc_array[i].connect_info.machine_name;
+				newargv[2] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
+				newargv[3] = "IP_DU_SERVEUR"; // TODO
+				newargv[4] = "PORT_DU_SERVEUR"; // TODO
+				newargv[5] = "RANG_DU_PROCESS_DISTANT"; // TODO
+				
 				// Pour les autres arguments, on complète avec ceux donnés lors de l'appel
 				for (j = 2; j < argc; j++) {
-					newargv[i + 4 - 2] = malloc(sizeof(char) * strlen(argv[i]));
-					strcpy(newargv[i + 2], argv[i]);
+					newargv[i + 6 - 2] = malloc(sizeof(char) * strlen(argv[i]));
+					strcpy(newargv[i + 4], argv[i]);
 				}
 				
-				if (VERBOSE) printf("Nom machine de rang %i => %s\n", i, newargv[0]);
+				newargv[j+1] = NULL;
+				
+				// if (VERBOSE) printf("Nom machine de rang %i => [%s]\n", i, newargv[1]);
 
 				/* jump to new prog : */
-				/* execvp("ssh",newargv); */
+				if (execvp("ssh", newargv) == -1)
+					error("Erreur lors de l'exécution ssh ");
 
 			} else  if(pid > 0) { /* pere */
 				
@@ -134,7 +176,11 @@ int main(int argc, char *argv[]) {
 				// Fermeture de l'extremité d'écriture, puisqu'on souhaite lire.
 				close(fd_stderr[1]);
 				close(fd_stdout[1]);
-				// TODO : Fermeture des autres extrémités non utilisées
+				
+				// Enregistrement des extrémités utiles pour le reste du
+				// programme :
+				proc_array[i].stderr = fd_stdout[0];
+				proc_array[i].stdout = fd_stderr[0];
 
 				num_procs_creat++;
 			}
@@ -170,13 +216,55 @@ int main(int argc, char *argv[]) {
 
 		/* gestion des E/S : on recupere les caracteres */
 		/* sur les tubes de redirection de stdout/stderr */     
-		/* while(1) {
-		je recupere les infos sur les tubes de redirection
-		jusqu'à ce qu'ils soient inactifs (ie fermes par les
-		processus dsm ecrivains de l'autre cote ...)
+		while(1) {
+			
+			// R.A.Z ===================================================
+			FD_ZERO(&readset);
+				
+			for (i = 0; i < num_procs ; i++) {
+			
+				FD_SET(proc_array[i].stderr, &readset);
+				FD_SET(proc_array[i].stdout, &readset);
+				
+			}
+			
+			plus_grd_tube = proc_array[i].stderr;
+			// ---------------------------------------------------------
+			
+			// Select ==================================================
+			if ( select( plus_grd_tube + 1, &readset, NULL, NULL, NULL) == -1
+			&& errno != EINTR)
+					error("Erreur lors du select ");
+			
+			// Si on a l'erreur EINTR, c'est qu'on a été interrompu par
+			// un signal. On continue quand même et on observe les sets
+			else
+				for (i = 0; i < num_procs ; i++) {
+			
+				if (FD_ISSET(proc_array[i].stderr, &readset)) {
+					
+					fprintf(stdout, "[%s > proc %i > stderr] ", proc_array[i].connect_info.machine_name, i);
+					
+					lecture_tube(proc_array[i].stderr, buffer);
+				}
+					
+				if (FD_ISSET(proc_array[i].stdout, &readset)) {
+					
+					fprintf(stderr, "[%s > proc %i > stdout] ", proc_array[i].connect_info.machine_name, i);
+					
+					lecture_tube(proc_array[i].stderr, buffer);
+				}
+				
+			}
+			
+			
+			/* je recupere les infos sur les tubes de redirection
+			jusqu'à ce qu'ils soient inactifs (ie fermes par les
+			processus dsm ecrivains de l'autre cote ...) */
+			
+			
 
 		};
-		*/
 
 		/* on attend les processus fils */
 

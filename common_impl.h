@@ -17,6 +17,8 @@
 
 #define VERBOSE 1
 
+#define BUFFER_MAX 150
+
 /* autres includes (eventuellement) */
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}
 
@@ -33,10 +35,13 @@ typedef struct dsm_proc_conn dsm_proc_conn_t;
 /* d'identification des processus dsm */
 struct dsm_proc {
   pid_t pid;
+  int stderr;
+  int stdout;
   dsm_proc_conn_t connect_info;
 };
 typedef struct dsm_proc dsm_proc_t;
 
+<<<<<<< Updated upstream
 	typedef char bool;
 	#define true 1
 	#define false 0
@@ -58,6 +63,10 @@ typedef struct dsm_proc dsm_proc_t;
 		OK_ANY 			= ANY_OK 			| (REPONSE_OK << 6)
 	};
 
+=======
+// Affichage d'erreur
+void error(const char *msg);
+>>>>>>> Stashed changes
 int creer_socket(int type, int *port_num);
 int count_process_nb(char * machine_file);
 dsm_proc_t* machine_names(char * name_file, int process_nb);

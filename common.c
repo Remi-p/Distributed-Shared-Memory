@@ -36,23 +36,41 @@ int count_process_nb(char * machine_file) {
 	return process_nb;
 }
 
+// Fonction d'erreur
+void error(const char *msg) {
+    perror(msg);
+    exit(1);
+}
+
+// TOASK : Ne vaut-il pas mieux une liste chaînée ?
 /* retourne un tableau de struct dsm_proc */
 /* de taille du nombre de processus */
-/* contenant le nom de la machine */
+/* contenant le nom de la machine + le rang */
 dsm_proc_t* machine_names(char * name_file, int process_nb) {
 	
 	FILE * fichier;
-	dsm_proc_t* proc_array = malloc(process_nb * sizeof(*proc_array));
+	dsm_proc_t* proc_array = malloc(process_nb * sizeof(struct dsm_proc));
 	int i = 0;
-	char * machine = (char *) malloc(NAME_MAX);
+	char * machine = (char *) malloc(NAME_MAX * sizeof(char));
 	
 	if( (fichier = fopen(name_file, "r")) == NULL)
 		perror("fopen");
 		
 	while(fgets(machine, NAME_MAX, fichier) != NULL) {
 		
-		proc_array[i].connect_info.machine_name = (char *)malloc(strlen(machine));
-		strcpy(proc_array[i].connect_info.machine_name, machine);;
+		// On enlève le retour chariot en même temps que l'on copie la chaîne
+		proc_array[i].connect_info.machine_name = (char *) malloc(strlen(machine) - 1);
+		
+		// Ceci remplace le saut de ligne par une fin de ligne, et stop
+		// strcpy
+		machine[strlen(machine) - 1] = '\0';
+		
+		strcpy(proc_array[i].connect_info.machine_name, machine);
+		
+		// On enregistre le rang, car des machines pourront être fermées
+		// changer ainsi l'ordre naturel du tableau
+		proc_array[i].connect_info.rank = i;
+		
 		i++;
 	}
 	
