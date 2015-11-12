@@ -256,7 +256,14 @@ int main(int argc, char *argv[]) {
 
 		/* gestion des E/S : on recupere les caracteres */
 		/* sur les tubes de redirection de stdout/stderr */     
+					
 		while(1) {
+			
+			// TODO : Voir s'il est possible de "vider" le contenu
+			// du tube en brut force, puis utiliser le select optimisé
+			
+			// TODO : Pourquoi lorsqu'on met l'accept plus haut, l'affi-
+			// -chage des tubes devient impossible ?
 			
 			// R.A.Z ===================================================
 			FD_ZERO(&readset);

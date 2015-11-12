@@ -27,7 +27,7 @@ int main(int argc, char **argv)
    
    /* Envoi du nom de machine au lanceur */
    // VERIF : envoie du rang plutot
-   wrap_rank = atoi(argv[4]);
+   wrap_rank = atoi(argv[3]);
    handle_message(wrap_socket, &wrap_rank, sizeof(u_short));
 
    //~ /* Envoi du pid au lanceur */
