@@ -11,13 +11,19 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#include <ifaddrs.h> // Récupération de l'addr. ip depuis les interfaces
+
+// Couleurs depuis le projet RE216
+#include "colors.h"
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
 #define VERBOSE 1
 
-#define BUFFER_MAX 150
+#define BUFFER_MAX 5
+
+#define DEFAULT_PORT 7777
 
 /* autres includes (eventuellement) */
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}
@@ -41,7 +47,6 @@ struct dsm_proc {
 };
 typedef struct dsm_proc dsm_proc_t;
 
-<<<<<<< Updated upstream
 	typedef char bool;
 	#define true 1
 	#define false 0
@@ -63,10 +68,9 @@ typedef struct dsm_proc dsm_proc_t;
 		OK_ANY 			= ANY_OK 			| (REPONSE_OK << 6)
 	};
 
-=======
 // Affichage d'erreur
 void error(const char *msg);
->>>>>>> Stashed changes
+
 int creer_socket(int type, int *port_num);
 int count_process_nb(char * machine_file);
 dsm_proc_t* machine_names(char * name_file, int process_nb);

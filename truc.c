@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
    char *wd_ptr = NULL;
    
    wd_ptr = getcwd(str,1024);
+   
    fprintf(stdout,"Working dir is %s\n",str);
    
    fprintf(stdout,"Number of args : %i\n", argc);

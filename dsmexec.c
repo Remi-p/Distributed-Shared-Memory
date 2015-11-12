@@ -27,12 +27,17 @@ void sigchld_handler(int sig) {
 	} while(ret > 0);
 }
 
-void lecture_tube(int fd, char * buffer) {
+void lecture_tube(int fd) {
+	
+	char *buffer = malloc(sizeof(char) * BUFFER_MAX);
 	
 	off_t off = 0;
 	
 	do {
-		off = read(fd, buffer, BUFFER_MAX + 1);
+		
+		memset(buffer, 0, sizeof(char) * BUFFER_MAX);
+		
+		off = read(fd, buffer, BUFFER_MAX);
 		
 		if (off == -1 && errno != EINTR )
 			error("Erreur de lecture d'un tube ");
@@ -44,19 +49,20 @@ void lecture_tube(int fd, char * buffer) {
 			fprintf(stdout, "%s", buffer);
 	} while (off > 0);
 	
+	free(buffer);
 }
 
 int main(int argc, char *argv[]) {
+	
+	fprintf(stdout, "Lancement de dsmexec.c\n");
 	
 	if (argc < 3){
 		usage();
 	} else {
 		
-<<<<<<< Updated upstream
-		enum code code_ret; // Code de retour
-=======
 		// Définition des variables ====================================
->>>>>>> Stashed changes
+		
+		enum code code_ret; // Code de retour
 		pid_t pid;
 		int num_procs = 0;
 		int i, j;
@@ -65,7 +71,6 @@ int main(int argc, char *argv[]) {
 		int fd_stdout[2]; 	// fd_stdout[0] : extremité en lecture
 							// fd_stdout[1] : extremité en écriture
 		int fd_stderr[2];
-		int result;
 		struct sockaddr* adr_tmp;
 
 		/* Mise en place d'un traitant pour recuperer les fils zombies*/    
@@ -95,31 +100,57 @@ int main(int argc, char *argv[]) {
 		/* creation de la socket d'ecoute */
 		int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-<<<<<<< Updated upstream
 		// Initialisation de la structure sockaddr_in pour l'adresse du server
-		struct sockaddr_in* serv_add = get_addr_info( 0,"localhost"); // VERIF : pas sur du tout
+		struct sockaddr_in* serv_add = get_addr_info( DEFAULT_PORT, NULL);
+		
+		// TODO : Clean
+		// Pour l'adresse IP à donné aux processus distants, on récupère
+		// les adresses des interfaces de la machine
+		struct ifaddrs *ifaddr;
+		if (getifaddrs(&ifaddr) == -1)
+			error("Erreur de récupération de l'adresse IP ");
+		struct ifaddrs *present = ifaddr;
+		char *ip = NULL;
+		do {
+			// Pour une raison inconnue, il y a des versions sans le 
+			// netmask. Pour trouver la bonne adresse on regarde donc
+			// qu'il soit définie.
+			if (strcmp(present->ifa_name, "em1") == 0
+			&& present->ifa_netmask != NULL) {
+				ip = inet_ntoa( ((struct sockaddr_in* ) present->ifa_addr)->sin_addr );
+				break;
+			}
+			present = present->ifa_next;
+		} while (present != NULL);
+		freeifaddrs(ifaddr);
+		if (ip == NULL)
+			error("IP de la machine non trouvée ");
 		
 		// On bind la socket sur le port TCP spécifié auparavant
 		do_bind(listen_socket, serv_add);
 		
+		// On enregistre le port après le bind, car il a été
+		// potentiellement changé
+		u_short port = ntohs(serv_add->sin_port);
+		
 		/* + ecoute effective */
-		do_listen(listen_socket, num_procs);		
-=======
-		/* + ecoute effective */
->>>>>>> Stashed changes
+		do_listen(listen_socket, num_procs);
 
-		if (VERBOSE) printf("Boucle de création des fils\n");
+		if (VERBOSE) printf("== Boucle de création des fils\n");
 				
 		/* creation des fils */
 		for(i = 0; i < num_procs ; i++) {
 
 			/* creation du tube pour rediriger stdout */
-			pipe(fd_stdout);
+			if (pipe(fd_stdout) == -1)
+				error("Erreur de création du tube de redirection stdout ");
 
 			/* creation du tube pour rediriger stderr */
-			pipe(fd_stderr);
+			if (pipe(fd_stderr) == -1)
+				error("Erreur de création du tube de redirection sterr ");
 
 			pid = fork();
+			
 			if(pid == -1) ERROR_EXIT("fork");
 
 			if (pid == 0) { /* fils */	
@@ -147,22 +178,25 @@ int main(int argc, char *argv[]) {
 				// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
 				// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
 				// 1 = Dernier élement, = NULL
-				char **newargv = malloc(sizeof(char *) * (6 + argc - 2 + 1));
+				u_short newargc = 6 + argc - 2 + 1;
+				char **newargv = malloc(sizeof(char *) * newargc);
 
 				newargv[0] = "ssh";
 				newargv[1] = proc_array[i].connect_info.machine_name;
 				newargv[2] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
-				newargv[3] = "IP_DU_SERVEUR"; // TODO
-				newargv[4] = "PORT_DU_SERVEUR"; // TODO
-				newargv[5] = "RANG_DU_PROCESS_DISTANT"; // TODO
+				newargv[3] = ip; // IP du serveur (fichier courant)
+				newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
+					sprintf(newargv[4], "%i", port); // Port du serveur
+				newargv[5] = malloc(sizeof(char) * 3);
+					sprintf(newargv[5], "%i", i); // Rang du processus (distant)
 				
 				// Pour les autres arguments, on complète avec ceux donnés lors de l'appel
 				for (j = 2; j < argc; j++) {
-					newargv[i + 6 - 2] = malloc(sizeof(char) * strlen(argv[i]));
-					strcpy(newargv[i + 4], argv[i]);
+					newargv[j + 6 - 2] = malloc(sizeof(char) * strlen(argv[j]));
+					strcpy(newargv[j + 4], argv[j]);
 				}
-				
-				newargv[j+1] = NULL;
+				// Dernier de la liste d'arguments
+				newargv[newargc - 1] = NULL;
 				
 				// if (VERBOSE) printf("Nom machine de rang %i => [%s]\n", i, newargv[1]);
 
@@ -179,28 +213,34 @@ int main(int argc, char *argv[]) {
 				
 				// Enregistrement des extrémités utiles pour le reste du
 				// programme :
-				proc_array[i].stderr = fd_stdout[0];
-				proc_array[i].stdout = fd_stderr[0];
+				proc_array[i].stderr = fd_stderr[0];
+				proc_array[i].stdout = fd_stdout[0];
 
 				num_procs_creat++;
 			}
 		}
 
-
+		// TODO : À placer dans l'initialisation
+		int rank_machine;
+		
 		for (i = 0; i < num_procs ; i++) {
 		
 			/* on accepte les connexions des processus dsm */
 			adr_tmp = malloc(sizeof(struct sockaddr));
-			do_accept(listen_socket, adr_tmp);
+			int accept_sckt = do_accept(listen_socket, adr_tmp);
 			
+			// TOASK : Pas de récupération du nom de machine ?
 			/*  On recupere le nom de la machine distante */
 			/* 1- d'abord la taille de la chaine */
 			/* 2- puis la chaine elle-meme */
 			
 			// On récupère plutot le rang de la machine dans le tableau
 			// de la structure
-			int * rank_machine = NULL;
-			do_read(listen_socket, rank_machine, sizeof(int), &code_ret);
+			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
+			
+			// TODO : Le rang n'est jamais trouvé, on reste à chaque
+			// fois à 0.
+			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
 
 			/* On recupere le pid du processus distant  */
 			
@@ -226,6 +266,8 @@ int main(int argc, char *argv[]) {
 				FD_SET(proc_array[i].stderr, &readset);
 				FD_SET(proc_array[i].stdout, &readset);
 				
+				fprintf(stdout, "%i : %i & %i\n", i, proc_array[i].stderr, proc_array[i].stdout);
+				
 			}
 			
 			plus_grd_tube = proc_array[i].stderr;
@@ -234,8 +276,9 @@ int main(int argc, char *argv[]) {
 			// Select ==================================================
 			if ( select( plus_grd_tube + 1, &readset, NULL, NULL, NULL) == -1
 			&& errno != EINTR)
-					error("Erreur lors du select ");
+				error("Erreur lors du select ");
 			
+			// TOASK : Est-ce qu'on fait vraiment ça ?
 			// Si on a l'erreur EINTR, c'est qu'on a été interrompu par
 			// un signal. On continue quand même et on observe les sets
 			else
@@ -243,16 +286,22 @@ int main(int argc, char *argv[]) {
 			
 				if (FD_ISSET(proc_array[i].stderr, &readset)) {
 					
-					fprintf(stdout, "[%s > proc %i > stderr] ", proc_array[i].connect_info.machine_name, i);
+					fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED, proc_array[i].connect_info.machine_name, i, ANSI_COLOR_RESET);
 					
-					lecture_tube(proc_array[i].stderr, buffer);
+					lecture_tube(proc_array[i].stderr);
+					
+					fprintf(stdout, "\n");
+					fflush(stdout);
 				}
 					
 				if (FD_ISSET(proc_array[i].stdout, &readset)) {
 					
-					fprintf(stderr, "[%s > proc %i > stdout] ", proc_array[i].connect_info.machine_name, i);
+					fprintf(stdout, "[%s > proc %i > stdout]\n", proc_array[i].connect_info.machine_name, i);
 					
-					lecture_tube(proc_array[i].stderr, buffer);
+					lecture_tube(proc_array[i].stdout);
+					
+					fprintf(stdout, "\n");
+					fflush(stdout);
 				}
 				
 			}

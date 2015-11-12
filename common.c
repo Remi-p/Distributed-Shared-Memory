@@ -99,11 +99,22 @@ int do_socket(int domain, int type, int protocol) {
 // Création du bind
 void do_bind(int socket, struct sockaddr_in* serv_add) {
 	
-	int bindtmp = bind(socket, (struct sockaddr *) serv_add, sizeof(struct sockaddr));
+	int bindtmp;
+	// On va essayer d'assigner un port jusqu'à en trouver un disponible
 	
-	if (bindtmp == -1) {
-		error("Voici l'erreur concernant la création du bind M. ");
-	}
+	do {
+		bindtmp = bind(socket, (struct sockaddr *) serv_add, sizeof(struct sockaddr));
+		
+		if (bindtmp == -1) {
+			if (errno != EADDRINUSE)
+				error("Voici l'erreur concernant la création du bind M. ");
+			else {
+				serv_add->sin_port += 1;
+			}
+		}
+		
+	} while (bindtmp < 0);
+	
 }
 
 /* foncton do_connect */
@@ -116,7 +127,7 @@ int do_connect(int socket, struct sockaddr_in serv_add) {
 		error("Voici l'erreur concernant la connexion ");
 	}
 	
-	printf("Connexion réussie (%i), bienvenue sur le tchat.\n\n", conn);
+	printf("Connexion réussie.\n\n");
 	
 	return conn;
 }
@@ -136,14 +147,27 @@ int do_accept(int sckt, struct sockaddr* adresse) {
 	
 	socklen_t length_client = sizeof(struct sockaddr);
 	
-	int sckt2 = accept(sckt, adresse, &length_client);
+	int ret;
 	
-	if (sckt2 < 0) {
-		error("Voici l'erreur concernant l'acceptation : ");
-	}
-	//printf("Bienvenue sur le tchat de l'ambiance, vous possédez la socket n°%i\n", sckt2);
+	do {
+		ret = accept(sckt, adresse, &length_client);
+		
+		if (ret < 0 && errno != EINTR) {
+			error("Voici l'erreur concernant l'acceptation : ");
+		}
+		
+		if (ret == -1 && errno == EINTR) {
+			// D'après man 3 accept :
+			// EINTR The accept() function was interrupted by a signal
+			//		 that was caught before a valid connection arrived.
+			
+			// Donc on réessaye l'accept, puisque si on est là c'est
+			// qu'il devrait y avoir une connexion
+		}
+		
+	} while (ret < 0);
 	
-	return sckt2;
+	return ret;
 }
 
 // Read les données envoyées
@@ -165,16 +189,17 @@ bool do_read(int socket, void *output, int taille, enum code* code_ret) {
 		
 	// D'après `man recv` : "If no messages are available to be received
 	// and the peer has performed an orderly shutdown, recv() shall
-	// return 0." Dans ce cas, output doit être égale à /quit
+	// return 0."
 	else if (offset == 0) {
 		free(msg_received);
 		return false;
 	}
-	else {	
-		
-		free(msg_received);
-		return true;
-	}
+	
+	if (memcpy(output, msg_received, taille) == NULL)
+		error("Erreur de recopie dans le buffer ");
+	
+	free(msg_received);
+	return true;
 }
 
 /* Message sending */
@@ -202,7 +227,7 @@ struct sockaddr_in* get_addr_info(int port, char* hostname) {
 	struct sockaddr_in* sin = malloc(sizeof(struct sockaddr_in));
 	
 	sin->sin_family=AF_INET;
-	sin->sin_port=htons(port);
+	sin->sin_port=htons( (u_short) port);
 	
 	if (hostname == NULL)
 		sin->sin_addr.s_addr=INADDR_ANY; //Utiliser loopback
