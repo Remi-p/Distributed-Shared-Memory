@@ -25,7 +25,8 @@
 
 #define BUFFER_MAX 5
 
-#define DEFAULT_PORT 7777
+// Taille maximale pour le nom d'une machine
+#define NAME_MAX 25
 
 /* autres includes (eventuellement) */
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}

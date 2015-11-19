@@ -47,6 +47,10 @@ int main(int argc, char **argv)
    /* le systeme choisit le port */ 
    handle_message(wrap_socket, &b_wrap_port, sizeof(u_short));
    
+   /* /!\ !! L'erreur du numéro de port vient probablement du fait qu'il
+   // y a un buffer dans send, et du coup il envoie tout d'un coup !! 
+   // /!\ */
+   
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */
 

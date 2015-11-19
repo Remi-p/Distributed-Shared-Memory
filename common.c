@@ -1,5 +1,4 @@
 #include "common_impl.h"
-#define NAME_MAX 25
 
 // Display informations on a struct sockaddr_in
 void addr_verbose(struct sockaddr_in sockaddr, char *env) {
@@ -15,7 +14,7 @@ void addr_verbose(struct sockaddr_in sockaddr, char *env) {
 
 void store_ip(char* interface, char ** ip) {
 	
-	// Pour l'adresse IP à donné aux processus distants, on récupère
+	// Pour l'adresse IP à donner aux processus distants, on récupère
 	// les adresses des interfaces de la machine
 	struct ifaddrs *ifaddr;
 	if (getifaddrs(&ifaddr) == -1)
@@ -46,6 +45,7 @@ int creer_socket(int prop, u_short *port_num, char** ip) {
 	socklen_t sock_addrlen;
 	int fd = 0;
    
+	// TOASK : Y-a-t-il un moyen + dynamique ?
 	if (ip != NULL) store_ip("em1", ip);
 	
 	/* fonction de creation et d'attachement */
@@ -70,30 +70,6 @@ int creer_socket(int prop, u_short *port_num, char** ip) {
 	return fd;
 }
 
-/* Vous pouvez ecrire ici toutes les fonctions */
-/* qui pourraient etre utilisees par le lanceur */
-/* et le processus intermediaire. N'oubliez pas */
-/* de declarer le prototype de ces nouvelles */
-/* fonctions dans common_impl.h */
-
-/* compte le nombre de processus a lancer */
-int count_process_nb(char * machine_file) {
-	
-	int c;
-	unsigned int process_nb = 0;
-	FILE * fichier;
-	
-	if( (fichier = fopen(machine_file, "r")) == NULL)
-		return -1;
-		
-	while( (c = fgetc(fichier)) != EOF ){
-		if(c == '\n')
-			++process_nb;
-	}
-	
-	return process_nb;
-}
-
 // Segmentation fault
 void gdb_stop() {	
 	// http://stackoverflow.com/questions/18986351/what-is-the-simplest-standard-conform-way-to-produce-a-segfault-in-c
@@ -105,75 +81,6 @@ void gdb_stop() {
 void error(const char *msg) {
     perror(msg);
     exit(1);
-}
-
-// Enlève un élément du tableau de processus
-void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
-	
-	int i;
-	int proc_qty = *nb_process;
-	
-	for (i = 0; i < proc_qty; i++) {
-		
-		// La cellule à supprimer à été localisée
-		if((*process)[i].connect_info.rank == rank) {
-	
-			// Si c'est le dernier élément :
-			if (i == proc_qty -1) {
-				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			}
-			// Sinon, on gère avec memmove
-			else {
-				memmove((*process) + i,
-						(*process) + i + 1,
-						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
-				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			}
-			
-			(*nb_process)--;
-			return;
-		}
-		
-	}
-	
-	error("Rank not found");
-	
-}
-
-// TOASK : Ne vaut-il pas mieux une liste chaînée ?
-/* retourne un tableau de struct dsm_proc */
-/* de taille du nombre de processus */
-/* contenant le nom de la machine + le rang */
-dsm_proc_t* machine_names(char * name_file, int process_nb) {
-	
-	FILE * fichier;
-	dsm_proc_t* proc_array = malloc(process_nb * sizeof(struct dsm_proc));
-	int i = 0;
-	char * machine = (char *) malloc(NAME_MAX * sizeof(char));
-	
-	if( (fichier = fopen(name_file, "r")) == NULL)
-		perror("fopen");
-		
-	while(fgets(machine, NAME_MAX, fichier) != NULL) {
-		
-		proc_array[i].connect_info.machine_name = (char *) malloc(strlen(machine) - 1);
-		
-		// Ceci remplace le saut de ligne par une fin de ligne, et stop
-		// strcpy
-		machine[strlen(machine) - 1] = '\0';
-		
-		// On enlève le retour chariot en même temps que l'on copie la chaîne
-		strcpy(proc_array[i].connect_info.machine_name, machine);
-		
-		// On enregistre le rang, car des machines pourront être fermées
-		// et changer ainsi l'ordre naturel du tableau
-		proc_array[i].connect_info.rank = i;
-		
-		i++;
-	}
-	
-	return proc_array;
-	
 }
 
 /* fonction do_socket */
