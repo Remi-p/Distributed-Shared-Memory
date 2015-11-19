@@ -1,28 +1,73 @@
 #include "common_impl.h"
 #define NAME_MAX 25
 
-int creer_socket(int prop, int *port_num) 
-{
-   struct sockaddr_in *sock_addr;
-   socklen_t sock_addrlen;
-   int fd = 0;
+// Display informations on a struct sockaddr_in
+void addr_verbose(struct sockaddr_in sockaddr, char *env) {
+	
+	if (env != NULL)
+		fprintf(stdout, "%s :\n", env);
+		
+	fprintf(stdout, "\tPort : %i\n\tAddr : %i\n", sockaddr.sin_port, sockaddr.sin_addr.s_addr);
+	
+	fprintf(stdout, "\tsin_family : %i\n\n", sockaddr.sin_family);
+	
+}
+
+void store_ip(char* interface, char ** ip) {
+	
+	// Pour l'adresse IP à donné aux processus distants, on récupère
+	// les adresses des interfaces de la machine
+	struct ifaddrs *ifaddr;
+	if (getifaddrs(&ifaddr) == -1)
+		error("Erreur de récupération de l'adresse IP ");
+		
+	struct ifaddrs *present = ifaddr;
+	do {
+		// Pour une raison inconnue, il y a des versions sans le 
+		// netmask. Pour trouver la bonne adresse on regarde donc
+		// qu'il soit défini.
+		if (strcmp(present->ifa_name, interface) == 0
+		&& present->ifa_netmask != NULL) {
+			*ip = inet_ntoa( ((struct sockaddr_in* ) present->ifa_addr)->sin_addr );
+			break;
+		}
+		present = present->ifa_next;
+	} while (present != NULL);
+	
+	freeifaddrs(ifaddr);
+	
+	if (*ip == NULL)
+		error("IP de la machine non trouvée ");
+}
+
+int creer_socket(int prop, u_short *port_num, char** ip) {
+	
+	struct sockaddr_in *sock_addr;
+	socklen_t sock_addrlen;
+	int fd = 0;
    
-   /* fonction de creation et d'attachement */
-   /* d'une nouvelle socket */
-   fd = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-   
-   /* renvoie le numero de descripteur */
-   /* et modifie le parametre port_num */
-   // TODO corriger les warnings
-   sock_addr = get_addr_info(0, NULL); // 0, cad qu'on laisse le système choisir un port
-   sock_addrlen = sizeof(struct sockaddr_in);
-   
-   do_bind(fd, sock_addr);
-   
-   getsockname(fd, (struct sockaddr *)sock_addr, &sock_addrlen);
-   *port_num = sock_addr->sin_port;
-   
-   return fd;
+	if (ip != NULL) store_ip("em1", ip);
+	
+	/* fonction de creation et d'attachement */
+	/* d'une nouvelle socket */
+	fd = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	/* renvoie le numero de descripteur */
+	/* et modifie le parametre port_num */
+	// TODO corriger les warnings
+	if (ip == NULL)
+		sock_addr = get_addr_info(0, NULL); // 0, c-à-d qu'on laisse le système choisir un port
+	else
+		sock_addr = get_addr_info(0, *ip);
+		
+	sock_addrlen = sizeof(struct sockaddr_in);
+
+	do_bind(fd, sock_addr);
+
+	getsockname(fd, (struct sockaddr *)sock_addr, &sock_addrlen);
+	*port_num = sock_addr->sin_port;
+
+	return fd;
 }
 
 /* Vous pouvez ecrire ici toutes les fonctions */
@@ -170,7 +215,7 @@ void do_bind(int socket, struct sockaddr_in* serv_add) {
 	
 }
 
-/* foncton do_connect */
+/* Fonction do_connect */
 /* ask for connexion */
 int do_connect(int socket, struct sockaddr_in serv_add) {
 	
@@ -271,24 +316,20 @@ void handle_message(int socket, const void *input, int taille) {
 	while (offset!=taille);
 }
 
-//init the self address structure
 // hostname can be NULL, we then use INADDR_ANY
 struct sockaddr_in* get_addr_info(int port, char* hostname) {
 	
-	//~ struct sockaddr_in sin;
-	//~ memset(&sin, 0, sizeof(struct sockaddr_in));
-	struct sockaddr_in* sin = malloc(sizeof(struct sockaddr_in));
+	struct sockaddr_in* sin = calloc(sizeof(char), sizeof(struct sockaddr_in));
 	
 	sin->sin_family=AF_INET;
-	sin->sin_port=htons( (u_short) port);
+	//sin->sin_port=htons(port);
+	sin->sin_port=port;
 	
 	if (hostname == NULL)
 		sin->sin_addr.s_addr=INADDR_ANY; //Utiliser loopback
 		//sin.sin_addr.s_addr=inet_addr("127.0.0.1");
 	else
 		sin->sin_addr.s_addr = inet_addr(hostname);
-		
-	//printf("Port : %i / Addr : %i", sin.sin_port, sin.sin_addr.s_addr);
 	
 	return sin;
 

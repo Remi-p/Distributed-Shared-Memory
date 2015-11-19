@@ -54,7 +54,7 @@ void lecture_tube(int fd) {
 
 int main(int argc, char *argv[]) {
 	
-	fprintf(stdout, "Lancement de dsmexec.c\n");
+	fprintf(stdout, "%s\nLancement de dsmexec.c%s\n\n", ANSI_STYLE_UNDERLINED, ANSI_RESET);
 	
 	if (argc < 3){
 		usage();
@@ -78,6 +78,8 @@ int main(int argc, char *argv[]) {
 		wd_ptr = getcwd(str,1024);
 		socklen_t sock_addrlen;
 		sock_addrlen = sizeof(struct sockaddr_in);
+		u_short port_num;
+		char *ip = NULL;
 		
 
 		/* Mise en place d'un traitant pour recuperer les fils zombies*/    
@@ -91,7 +93,6 @@ int main(int argc, char *argv[]) {
 		//struct pollfd fds[num_procs * 2];
 		// On utilise un malloc pour pouvoir utiliser le realloc
 		struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (num_procs * 2));
-		fprintf(stdout, "Addr : %p\n", fds);
 		// Necessaire pour le select
 		int nb_tubes;
 		// Buffer de réception des tubes
@@ -108,54 +109,27 @@ int main(int argc, char *argv[]) {
 		proc_array = machine_names(argv[1], num_procs);
 
 		/* creation de la socket d'ecoute */
-		int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		int listen_socket = creer_socket(0, &port_num, &ip);
+		//int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 		// Initialisation de la structure sockaddr_in pour l'adresse du server
-		struct sockaddr_in* serv_add = get_addr_info( 0, NULL);
-		
-		// TODO : Clean
-		// Pour l'adresse IP à donné aux processus distants, on récupère
-		// les adresses des interfaces de la machine
-		struct ifaddrs *ifaddr;
-		if (getifaddrs(&ifaddr) == -1)
-			error("Erreur de récupération de l'adresse IP ");
-		struct ifaddrs *present = ifaddr;
-		char *ip = NULL;
-		do {
-			// Pour une raison inconnue, il y a des versions sans le 
-			// netmask. Pour trouver la bonne adresse on regarde donc
-			// qu'il soit définie.
-			if (strcmp(present->ifa_name, "em1") == 0
-			&& present->ifa_netmask != NULL) {
-				ip = inet_ntoa( ((struct sockaddr_in* ) present->ifa_addr)->sin_addr );
-				break;
-			}
-			present = present->ifa_next;
-		} while (present != NULL);
-		freeifaddrs(ifaddr);
-		if (ip == NULL)
-			error("IP de la machine non trouvée ");
-	
+		//struct sockaddr_in* serv_add = get_addr_info( 0, NULL);
 		
 		// On bind la socket sur le port TCP spécifié auparavant
-		do_bind(listen_socket, serv_add);
+		//do_bind(listen_socket, serv_add);
 		
-		getsockname(listen_socket, (struct sockaddr *)serv_add, &sock_addrlen);
+		//getsockname(listen_socket, (struct sockaddr *)serv_add, &sock_addrlen);
 		
 		//char * ip;
 		
 		//ip= inet_ntoa(serv_add->sin_addr);
 		//printf("IP adresse : %s", ip);
 		
-		// On enregistre le port après le bind, car il a été
-		// potentiellement changé
-		u_short port = ntohs(serv_add->sin_port);
-		
 		/* + ecoute effective */
 		do_listen(listen_socket, num_procs);
 
-		if (VERBOSE) printf("%s== Boucle de création des fils%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
-				
+		if (VERBOSE) printf("%s= Boucle de création des fils%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+		
 		/* creation des fils */
 		
 		for(i = 0; i < num_procs ; i++) {
@@ -206,7 +180,7 @@ int main(int argc, char *argv[]) {
 				newargv[2] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
 				newargv[3] = ip; // IP du serveur (fichier courant)
 				newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
-					sprintf(newargv[4], "%i", port); // Port du serveur
+					sprintf(newargv[4], "%i", port_num); // Port du serveur
 				newargv[5] = malloc(sizeof(char) * 3);
 					sprintf(newargv[5], "%i", i); // Rang du processus (distant)
 				
@@ -243,7 +217,7 @@ int main(int argc, char *argv[]) {
 		// TODO : À placer dans l'initialisation
 		int rank_machine;
 		
-		if (VERBOSE) printf("\n%s== Boucle d'acceptation de connexion%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+		if (VERBOSE) printf("\n%s= Boucle d'acceptation de connexion%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
 		
 		for (i = 0; i < num_procs ; i++) {
 		
@@ -279,10 +253,9 @@ int main(int argc, char *argv[]) {
 		/* gestion des E/S : on recupere les caracteres */
 		/* sur les tubes de redirection de stdout/stderr */     
 		
-		if (VERBOSE) printf("\n%s== Boucle de lecture des tubes%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
-		
+		if (VERBOSE) printf("\n%s= Boucle de lecture des tubes%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+			
 		while(num_procs > 0) {
-			j++;
 			// TODO : Pourquoi lorsqu'on met l'accept plus haut, l'affi-
 			// -chage des tubes devient impossible ?
 			
@@ -311,7 +284,7 @@ int main(int argc, char *argv[]) {
 				if ( errno != EINTR )
 					error("Erreur lors du select ");
 			
-			if (VERBOSE) printf("\n%s== For de selection (j=%i), %i process%s\n", ANSI_STYLE_BOLD, j, num_procs, ANSI_RESET);
+			if (VERBOSE) printf("\n%s== For de selection, %i process%s\n", ANSI_STYLE_BOLD, num_procs, ANSI_RESET);
 			// Le select à réussi :
 			for (i = 0; i < num_procs ; i++) {
 		

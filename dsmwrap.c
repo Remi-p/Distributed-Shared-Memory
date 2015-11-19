@@ -8,22 +8,20 @@ int main(int argc, char **argv)
    int wrap_socket, l_wrap_socket;
    struct sockaddr_in *launcher_addr;
    char * launcher_ip_addr;
-   int launcher_port, wrap_port, b_wrap_port;
+   u_short launcher_port, wrap_port, b_wrap_port;
    int wrap_rank;
    pid_t pid;
    
    /* creation d'une socket pour se connecter au */
    /* au lanceur et envoyer/recevoir les infos */
    /* necessaires pour la phase dsm_init */ 
-   wrap_socket = creer_socket(0, &wrap_port);
+   wrap_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
    //~ wrap_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
    
    // Récupération de la struct sock_addr du lanceur
    launcher_ip_addr = argv[1];
    launcher_port = atoi(argv[2]);
    launcher_addr = get_addr_info(launcher_port, launcher_ip_addr);
-   
-	printf("Exec : %s et %i arguments", launcher_ip_addr, launcher_port);
    
    // Connexion au lanceur
    do_connect(wrap_socket, *launcher_addr);
@@ -39,13 +37,15 @@ int main(int argc, char **argv)
    
    /* Creation de la socket d'ecoute pour les */
    /* connexions avec les autres processus dsm */
-   l_wrap_socket = creer_socket(0, &b_wrap_port);
+   l_wrap_socket = creer_socket(0, &b_wrap_port, NULL);
+   // TODO : Pas forcément besoin de récupérer l'adresse ip, normalement
+   // 		 le serveur dsmexec la connaît.
+ 
+   printf("Port socket ecoute : %i \n", b_wrap_port);
  
    /* Envoi du numero de port au lanceur */
    /* le systeme choisit le port */ 
    handle_message(wrap_socket, &b_wrap_port, sizeof(u_short));
-   
-   printf("Port socket ecoute : %i \n", wrap_port);
    
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */

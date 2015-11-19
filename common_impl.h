@@ -79,7 +79,7 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 // Segmentation fault
 void gdb_stop();
 	
-int creer_socket(int type, int *port_num);
+int creer_socket(int type, u_short *port_num, char** ip);
 int count_process_nb(char * machine_file);
 dsm_proc_t* machine_names(char * name_file, int process_nb);
 int do_socket(int domain, int type, int protocol);
