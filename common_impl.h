@@ -11,6 +11,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#include <poll.h>
+
 #include <ifaddrs.h> // Récupération de l'addr. ip depuis les interfaces
 
 // Couleurs depuis le projet RE216
@@ -71,6 +73,12 @@ typedef struct dsm_proc dsm_proc_t;
 // Affichage d'erreur
 void error(const char *msg);
 
+// Enlève un élément du tableau de processus
+void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
+
+// Segmentation fault
+void gdb_stop();
+	
 int creer_socket(int type, int *port_num);
 int count_process_nb(char * machine_file);
 dsm_proc_t* machine_names(char * name_file, int process_nb);

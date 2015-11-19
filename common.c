@@ -49,10 +49,50 @@ int count_process_nb(char * machine_file) {
 	return process_nb;
 }
 
+// Segmentation fault
+void gdb_stop() {	
+	// http://stackoverflow.com/questions/18986351/what-is-the-simplest-standard-conform-way-to-produce-a-segfault-in-c
+	const char *s = NULL;
+	printf( "%c\n", s[0] );
+}
+
 // Fonction d'erreur
 void error(const char *msg) {
     perror(msg);
     exit(1);
+}
+
+// Enlève un élément du tableau de processus
+void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
+	
+	int i;
+	int proc_qty = *nb_process;
+	
+	for (i = 0; i < proc_qty; i++) {
+		
+		// La cellule à supprimer à été localisée
+		if((*process)[i].connect_info.rank == rank) {
+	
+			// Si c'est le dernier élément :
+			if (i == proc_qty -1) {
+				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
+			}
+			// Sinon, on gère avec memmove
+			else {
+				memmove((*process) + i,
+						(*process) + i + 1,
+						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
+				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
+			}
+			
+			(*nb_process)--;
+			return;
+		}
+		
+	}
+	
+	error("Rank not found");
+	
 }
 
 // TOASK : Ne vaut-il pas mieux une liste chaînée ?
@@ -71,17 +111,17 @@ dsm_proc_t* machine_names(char * name_file, int process_nb) {
 		
 	while(fgets(machine, NAME_MAX, fichier) != NULL) {
 		
-		// On enlève le retour chariot en même temps que l'on copie la chaîne
 		proc_array[i].connect_info.machine_name = (char *) malloc(strlen(machine) - 1);
 		
 		// Ceci remplace le saut de ligne par une fin de ligne, et stop
 		// strcpy
 		machine[strlen(machine) - 1] = '\0';
 		
+		// On enlève le retour chariot en même temps que l'on copie la chaîne
 		strcpy(proc_array[i].connect_info.machine_name, machine);
 		
 		// On enregistre le rang, car des machines pourront être fermées
-		// changer ainsi l'ordre naturel du tableau
+		// et changer ainsi l'ordre naturel du tableau
 		proc_array[i].connect_info.rank = i;
 		
 		i++;

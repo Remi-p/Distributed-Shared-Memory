@@ -73,25 +73,28 @@ int main(int argc, char *argv[]) {
 		int fd_stderr[2];
 		struct sockaddr* adr_tmp;
 
+		/* lecture du fichier de machines */
+		/* 1- on recupere le nombre de processus a lancer */
+		num_procs = count_process_nb(argv[1]);
+		// TODO : Vérification nom machine (alphanumérique)
+		
 		/* Mise en place d'un traitant pour recuperer les fils zombies*/    
 		memset(&sigact, 0, sizeof(struct sigaction));
 		sigact.sa_handler = &sigchld_handler;
 		sigaction(SIGCHLD, &sigact, NULL);
 		
-		// Variables liées au select -----------------------------------
+		// Variables liées au poll -------------------------------------
 		// Ici on stockera tous les descripteurs de fichier pour les
 		// tubes
-		fd_set readset;
+		//struct pollfd fds[num_procs * 2];
+		// On utilise un malloc pour pouvoir utiliser le realloc
+		struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (num_procs * 2));
+		fprintf(stdout, "Addr : %p\n", fds);
 		// Necessaire pour le select
-		int plus_grd_tube;
+		int nb_tubes;
 		// Buffer de réception des tubes
 		char buffer[BUFFER_MAX];
 		memset(buffer, 0, BUFFER_MAX * sizeof(char));
-
-		/* lecture du fichier de machines */
-		/* 1- on recupere le nombre de processus a lancer */
-		num_procs = count_process_nb(argv[1]);
-		// TODO : Vérification nom machine (alphanumérique)
 
 		/* 2- on recupere les noms des machines : le nom de */
 		/* la machine est un des elements d'identification */
@@ -104,7 +107,7 @@ int main(int argc, char *argv[]) {
 		struct sockaddr_in* serv_add = get_addr_info( DEFAULT_PORT, NULL);
 		
 		// TODO : Clean
-		// Pour l'adresse IP à donné aux processus distants, on récupère
+		// Pour l'adresse IP à donner aux processus distants, on récupère
 		// les adresses des interfaces de la machine
 		struct ifaddrs *ifaddr;
 		if (getifaddrs(&ifaddr) == -1)
@@ -136,9 +139,10 @@ int main(int argc, char *argv[]) {
 		/* + ecoute effective */
 		do_listen(listen_socket, num_procs);
 
-		if (VERBOSE) printf("== Boucle de création des fils\n");
+		if (VERBOSE) printf("%s== Boucle de création des fils%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
 				
 		/* creation des fils */
+		
 		for(i = 0; i < num_procs ; i++) {
 
 			/* creation du tube pour rediriger stdout */
@@ -155,7 +159,7 @@ int main(int argc, char *argv[]) {
 
 			if (pid == 0) { /* fils */	
 
-				if (VERBOSE) printf("Fils n°%i\n", i);
+				if (VERBOSE) printf("Création du fils n°%i\n", i);
 
 				/* redirection stdout */
 				close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
@@ -223,6 +227,8 @@ int main(int argc, char *argv[]) {
 		// TODO : À placer dans l'initialisation
 		int rank_machine;
 		
+		if (VERBOSE) printf("\n%s== Boucle d'acceptation de connexion%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+		
 		for (i = 0; i < num_procs ; i++) {
 		
 			/* on accepte les connexions des processus dsm */
@@ -238,9 +244,7 @@ int main(int argc, char *argv[]) {
 			// de la structure
 			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
 			
-			// TODO : Le rang n'est jamais trouvé, on reste à chaque
-			// fois à 0.
-			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
+			fprintf(stdout, "Accept => Rang deviné : %i\n", rank_machine);
 
 			/* On recupere le pid du processus distant  */
 			
@@ -256,52 +260,55 @@ int main(int argc, char *argv[]) {
 
 		/* gestion des E/S : on recupere les caracteres */
 		/* sur les tubes de redirection de stdout/stderr */     
-					
-		while(1) {
-			
-			// TODO : Voir s'il est possible de "vider" le contenu
-			// du tube en brut force, puis utiliser le select optimisé
-			
+		
+		if (VERBOSE) printf("\n%s== Boucle de lecture des tubes%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+		
+		while(num_procs > 0) {
+			j++;
 			// TODO : Pourquoi lorsqu'on met l'accept plus haut, l'affi-
 			// -chage des tubes devient impossible ?
 			
-			// R.A.Z ===================================================
-			FD_ZERO(&readset);
-				
+			fds = realloc(fds, sizeof(struct pollfd) * (num_procs * 2));
+			nb_tubes = 0;
+		
 			for (i = 0; i < num_procs ; i++) {
-			
-				FD_SET(proc_array[i].stderr, &readset);
-				FD_SET(proc_array[i].stdout, &readset);
+				// stdout
+				fds[2*i].fd = proc_array[i].stdout;
+				fds[2*i].events = POLLIN | POLLHUP;
+				 
+				// stderr
+				fds[2*i+1].fd = proc_array[i].stderr;
+				fds[2*i+1].events = POLLIN | POLLHUP;
 				
-				fprintf(stdout, "%i : %i & %i\n", i, proc_array[i].stderr, proc_array[i].stdout);
+				if (VERBOSE) fprintf(stdout, "Ajout des tubes du processus au poll (i=%i) : %i & %i\n", i, proc_array[i].stderr, proc_array[i].stdout);
 				
+				nb_tubes += 2;
 			}
 			
-			plus_grd_tube = proc_array[i].stderr;
-			// ---------------------------------------------------------
+			// Poll ====================================================
 			
-			// Select ==================================================
-			if ( select( plus_grd_tube + 1, &readset, NULL, NULL, NULL) == -1
-			&& errno != EINTR)
-				error("Erreur lors du select ");
+			// On fait une boucle while pour effectuer le poll tant que
+			// l'on a l'erreur EINTR (interrompu par un signal)
+			while ( poll( fds, nb_tubes, 0) == -1 )
+				if ( errno != EINTR )
+					error("Erreur lors du select ");
 			
-			// TOASK : Est-ce qu'on fait vraiment ça ?
-			// Si on a l'erreur EINTR, c'est qu'on a été interrompu par
-			// un signal. On continue quand même et on observe les sets
-			else
-				for (i = 0; i < num_procs ; i++) {
-			
-				if (FD_ISSET(proc_array[i].stderr, &readset)) {
+			if (VERBOSE) printf("\n%s== For de selection (j=%i), %i process%s\n", ANSI_STYLE_BOLD, j, num_procs, ANSI_RESET);
+			// Le select à réussi :
+			for (i = 0; i < num_procs ; i++) {
+		
+				// TODO => Suppression des processus fermés (memmove)
+				if ((fds[2*i].events & POLLIN) == POLLIN) {
 					
-					fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED, proc_array[i].connect_info.machine_name, i, ANSI_COLOR_RESET);
+					fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED, proc_array[i].connect_info.machine_name, i, ANSI_RESET);
 					
 					lecture_tube(proc_array[i].stderr);
 					
 					fprintf(stdout, "\n");
 					fflush(stdout);
 				}
-					
-				if (FD_ISSET(proc_array[i].stdout, &readset)) {
+				
+				if ((fds[2*i+1].events & POLLIN) == POLLIN) {
 					
 					fprintf(stdout, "[%s > proc %i > stdout]\n", proc_array[i].connect_info.machine_name, i);
 					
@@ -311,16 +318,21 @@ int main(int argc, char *argv[]) {
 					fflush(stdout);
 				}
 				
+				// On ne ferme le tube qu'après avoir affiché les
+				// informations
+				if ((fds[2*i].events & POLLHUP) == POLLHUP || (fds[2*i+1].events & POLLHUP) == POLLHUP) {
+					remove_from_rank(&proc_array, &num_procs, proc_array[i].connect_info.rank);
+				}
 			}
 			
-			
-			/* je recupere les infos sur les tubes de redirection
-			jusqu'à ce qu'ils soient inactifs (ie fermes par les
-			processus dsm ecrivains de l'autre cote ...) */
-			
-			
-
 		};
+		
+		// Extinction
+		
+		fprintf(stdout, "Extinction du programme.\n");
+		
+		free(fds);
+		
 
 		/* on attend les processus fils */
 
