@@ -1,13 +1,26 @@
 #include "common_impl.h"
 #define NAME_MAX 25
+
 int creer_socket(int prop, int *port_num) 
 {
+   struct sockaddr_in *sock_addr;
+   int sock_addrlen;
    int fd = 0;
    
    /* fonction de creation et d'attachement */
    /* d'une nouvelle socket */
+   fd = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+   
    /* renvoie le numero de descripteur */
    /* et modifie le parametre port_num */
+   // TODO corriger les warnings
+   sock_addr = get_addr_info(0, "localhost"); // 0, cad qu'on laisse le système choisir un port
+   sock_addrlen = sizeof(struct sockaddr_in);
+   
+   do_bind(fd, sock_addr);
+   
+   getsockname(fd, (struct sockaddr *)sock_addr, sock_addrlen);
+   port_num = sock_addr->sin_port;
    
    return fd;
 }
