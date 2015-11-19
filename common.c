@@ -4,7 +4,7 @@
 int creer_socket(int prop, int *port_num) 
 {
    struct sockaddr_in *sock_addr;
-   int sock_addrlen;
+   socklen_t sock_addrlen;
    int fd = 0;
    
    /* fonction de creation et d'attachement */
@@ -14,13 +14,13 @@ int creer_socket(int prop, int *port_num)
    /* renvoie le numero de descripteur */
    /* et modifie le parametre port_num */
    // TODO corriger les warnings
-   sock_addr = get_addr_info(0, "localhost"); // 0, cad qu'on laisse le système choisir un port
+   sock_addr = get_addr_info(0, NULL); // 0, cad qu'on laisse le système choisir un port
    sock_addrlen = sizeof(struct sockaddr_in);
    
    do_bind(fd, sock_addr);
    
-   getsockname(fd, (struct sockaddr *)sock_addr, sock_addrlen);
-   port_num = sock_addr->sin_port;
+   getsockname(fd, (struct sockaddr *)sock_addr, &sock_addrlen);
+   *port_num = sock_addr->sin_port;
    
    return fd;
 }

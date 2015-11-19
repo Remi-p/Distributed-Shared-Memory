@@ -23,6 +23,8 @@ int main(int argc, char **argv)
    launcher_port = atoi(argv[2]);
    launcher_addr = get_addr_info(launcher_port, launcher_ip_addr);
    
+	printf("Exec : %s et %i arguments", launcher_ip_addr, launcher_port);
+   
    // Connexion au lanceur
    do_connect(wrap_socket, *launcher_addr);
    
@@ -42,6 +44,8 @@ int main(int argc, char **argv)
    /* Envoi du numero de port au lanceur */
    /* le systeme choisit le port */ 
    handle_message(wrap_socket, &b_wrap_port, sizeof(u_short));
+   
+   printf("Port socket ecoute : %i \n", wrap_port);
    
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */

@@ -72,7 +72,13 @@ int main(int argc, char *argv[]) {
 							// fd_stdout[1] : extremité en écriture
 		int fd_stderr[2];
 		struct sockaddr* adr_tmp;
-
+		char str[1024];
+		char exec_path[1024];
+		char *wd_ptr = NULL;
+		wd_ptr = getcwd(str,1024);
+		socklen_t sock_addrlen;
+		sock_addrlen = sizeof(struct sockaddr_in);
+		
 		/* Mise en place d'un traitant pour recuperer les fils zombies*/    
 		memset(&sigact, 0, sizeof(struct sigaction));
 		sigact.sa_handler = &sigchld_handler;
@@ -101,7 +107,7 @@ int main(int argc, char *argv[]) {
 		int listen_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 		// Initialisation de la structure sockaddr_in pour l'adresse du server
-		struct sockaddr_in* serv_add = get_addr_info( DEFAULT_PORT, NULL);
+		struct sockaddr_in* serv_add = get_addr_info( 0, NULL);
 		
 		// TODO : Clean
 		// Pour l'adresse IP à donné aux processus distants, on récupère
@@ -125,9 +131,17 @@ int main(int argc, char *argv[]) {
 		freeifaddrs(ifaddr);
 		if (ip == NULL)
 			error("IP de la machine non trouvée ");
+	
 		
 		// On bind la socket sur le port TCP spécifié auparavant
 		do_bind(listen_socket, serv_add);
+		
+		getsockname(listen_socket, (struct sockaddr *)serv_add, &sock_addrlen);
+		
+		//char * ip;
+		
+		//ip= inet_ntoa(serv_add->sin_addr);
+		//printf("IP adresse : %s", ip);
 		
 		// On enregistre le port après le bind, car il a été
 		// potentiellement changé
@@ -157,19 +171,19 @@ int main(int argc, char *argv[]) {
 
 				if (VERBOSE) printf("Fils n°%i\n", i);
 
-				/* redirection stdout */
-				close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
-
-				close(STDOUT_FILENO);// On remplace stdout par fd[1]
-				dup(fd_stdout[1]);
-				close(fd_stdout[1]);
-
-				/* redirection stderr */	  
-				close(fd_stderr[0]);
-
-				close(STDERR_FILENO);
-				dup(fd_stderr[1]);
-				close(fd_stderr[1]);
+				//~ /* redirection stdout */
+				//~ close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
+//~ 
+				//~ close(STDOUT_FILENO);// On remplace stdout par fd[1]
+				//~ dup(fd_stdout[1]);
+				//~ close(fd_stdout[1]);
+//~ 
+				//~ /* redirection stderr */	  
+				//~ close(fd_stderr[0]);
+//~ 
+				//~ close(STDERR_FILENO);
+				//~ dup(fd_stderr[1]);
+				//~ close(fd_stderr[1]);
 
 				/* Creation du tableau d'arguments pour le ssh */ 
 				// if (VERBOSE) printf("Création du tableau d'arguments pour le ssh\n");
@@ -180,10 +194,11 @@ int main(int argc, char *argv[]) {
 				// 1 = Dernier élement, = NULL
 				u_short newargc = 6 + argc - 2 + 1;
 				char **newargv = malloc(sizeof(char *) * newargc);
+				sprintf(exec_path, "%s/bin/dsmwrap", wd_ptr);
 
 				newargv[0] = "ssh";
 				newargv[1] = proc_array[i].connect_info.machine_name;
-				newargv[2] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
+				newargv[2] = exec_path;
 				newargv[3] = ip; // IP du serveur (fichier courant)
 				newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
 					sprintf(newargv[4], "%i", port); // Port du serveur
