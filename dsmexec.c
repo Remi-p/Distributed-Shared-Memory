@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
         \* ========================================================== */
         if (VERBOSE) bold("\n= Boucle d'acceptation de connexion\n");
         
-        acceptation_connexions(num_procs, listen_socket);
+        acceptation_connexions(&num_procs, listen_socket, &proc_array);
 
         /* envoi du nombre de processus aux processus dsm*/
 		

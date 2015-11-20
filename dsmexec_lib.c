@@ -271,35 +271,64 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 }
 
 // Acceptation des connexions et enregistrement des informations
-void acceptation_connexions(int num_procs, int listen_socket) {
+void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc_array ) {
 	
 	struct sockaddr* adr_tmp;
 	int accept_sckt;
 	int rank_machine;
-	int i;
+	int i, j, k;
+	fd_set readfds;
+	struct timeval timeout;
+		timeout.tv_sec = 2;
+		timeout.tv_usec = 0;
+	int res;
         
-	for (i = 0; i < num_procs ; i++) {
+	for (i = 0; i < *num_procs ; i++) {
         
 		/* on accepte les connexions des processus dsm */
 		adr_tmp = malloc(sizeof(struct sockaddr));
-		accept_sckt = do_accept(listen_socket, adr_tmp);
 		
-		// TOASK : Pas de récupération du nom de machine ?
-		/* On recupere le nom de la machine distante */
-		/* 1- d'abord la taille de la chaine */
-		/* 2- puis la chaine elle-meme */
+		FD_ZERO(&readfds);
+		FD_SET(listen_socket, &readfds); 
 		
-		// On récupère plutot le rang de la machine dans le tableau
-		// de la structure
-		do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
+		while ((res = select(2, &readfds, NULL, NULL, &timeout)) == -1);
+			if ( errno != EINTR )
+				error("Erreur lors du select ");
 		
-		fprintf(stdout, "Rang deviné : %i\n", rank_machine);
+		if(res != 0) {
+			accept_sckt = do_accept(listen_socket, adr_tmp);
+		
+			// TOASK : Pas de récupération du nom de machine ?
+			/* On recupere le nom de la machine distante */
+			/* 1- d'abord la taille de la chaine */
+			/* 2- puis la chaine elle-meme */
+		
+			// On récupère plutot le rang de la machine dans le tableau
+			// de la structure
+			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
+			
+			// On enregistre le fd de la socket
+			// dans la structure associée au rang renvoyé
+			for(j=0; j < *num_procs; j++) {
+				if((*proc_array)[j].connect_info.rank == rank_machine) 
+					(*proc_array)[j].connect_info.socket = accept_sckt;
+			}
+			
+			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
 
-		/* On recupere le pid du processus distant  */
-		
-		/* On recupere le numero de port de la socket */
-		/* d'ecoute des processus distants */
+			/* On recupere le pid du processus distant  */
+			
+			/* On recupere le numero de port de la socket */
+			/* d'ecoute des processus distants */
+		}
 	}
+	// Si des accepts ne ce sont pas fait -> machine eteinte par ex
+	// On les supprime du tableau de structure
+	for(k=0; k < *num_procs; k++) {
+		if((*proc_array)[k].connect_info.socket == 0) 
+			remove_from_rank(proc_array, num_procs, (*proc_array)[j].connect_info.rank) ;
+	}
+	
 }
 
 // Affichage des données reçues sur les tubes
@@ -345,7 +374,7 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			if ( errno != EINTR )
 				error("Erreur lors du select ");
 		
-		if (VERBOSE) printf("\n%s== For de selection, %i process%s\n", ANSI_STYLE_BOLD, *num_procs, ANSI_RESET);
+		if (VERBOSE) bold("\n== For de selection, %i process\n");
 		
 		// Le poll à réussi :
 		for (i = 0; i < *num_procs ; i++) {

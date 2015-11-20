@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <ctype.h> 
 #include <poll.h>
+#include <time.h>
 
 #include <ifaddrs.h> // Récupération de l'addr. ip depuis les interfaces
 
@@ -35,6 +36,7 @@
 /* de connexion des processus dsm */
 struct dsm_proc_conn  {
    int rank;
+   int socket;
    char * machine_name;
    /* a completer */
 };
