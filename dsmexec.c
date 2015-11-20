@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
         acceptation_connexions(num_procs, listen_socket);
 
         /* envoi du nombre de processus aux processus dsm*/
-
+		
         /* envoi des rangs aux processus dsm */
 
         /* envoi des infos de connexion aux processus */

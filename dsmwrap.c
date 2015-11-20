@@ -29,7 +29,7 @@ int main(int argc, char **argv)
    /* Envoi du nom de machine au lanceur */
    // VERIF : envoie du rang plutot
    wrap_rank = atoi(argv[3]);
-   handle_message(wrap_socket, &wrap_rank, sizeof(u_short));
+   handle_message(wrap_socket, &wrap_rank, sizeof(int));
 
    /* Envoi du pid au lanceur */
    pid = getpid();
@@ -46,10 +46,6 @@ int main(int argc, char **argv)
    /* Envoi du numero de port au lanceur */
    /* le systeme choisit le port */ 
    handle_message(wrap_socket, &b_wrap_port, sizeof(u_short));
-   
-   /* /!\ !! L'erreur du numéro de port vient probablement du fait qu'il
-   // y a un buffer dans send, et du coup il envoie tout d'un coup !! 
-   // /!\ */
    
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */

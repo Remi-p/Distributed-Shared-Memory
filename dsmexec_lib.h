@@ -29,3 +29,6 @@ void acceptation_connexions(int num_procs, int listen_socket);
 
 // Affichage des données reçues sur les tubes
 void affichage_tubes(int *num_procs, dsm_proc_t **proc_array);
+
+// Verifie que les noms de machine sont en alphanumeriques
+int check_machine_name(char * name);

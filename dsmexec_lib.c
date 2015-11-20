@@ -97,6 +97,9 @@ dsm_proc_t* machine_names(char * name_file, int process_nb) {
 		machine[strlen(machine) - 1] = '\0';
 		
 		// On enlève le retour chariot en même temps que l'on copie la chaîne
+		if(check_machine_name(machine) == false)
+			error("check_machine_name");
+			
 		strcpy(proc_array[i].connect_info.machine_name, machine);
 		
 		// On enregistre le rang, car des machines pourront être fermées
@@ -290,7 +293,6 @@ void acceptation_connexions(int num_procs, int listen_socket) {
 		// de la structure
 		do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
 		
-		// TODO : Rand deviné pas super sexy !
 		fprintf(stdout, "Rang deviné : %i\n", rank_machine);
 
 		/* On recupere le pid du processus distant  */
@@ -378,4 +380,15 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	};
 	
 	free(fds);
+}
+
+// Check is a string is alphanumeric
+int check_machine_name(char * name) {
+	int i;
+	for(i = 0; i < strlen(name); i++) {
+		if(isalnum(name[i]) == false) {
+			return false;
+		}
+	}
+	return true;
 }
