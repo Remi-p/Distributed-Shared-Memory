@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	   if (VERBOSE) fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
    }
    
-   // TOASK : Le premier 'bonjour à tous' n'apparaît pas ?
+   // TOASK : Le premier 'bonjour à tous' n'apparaît pas ?!
    fprintf(stderr, "Bonjour à tous !\n");
    
    return 0;

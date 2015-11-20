@@ -54,7 +54,6 @@ int creer_socket(int prop, u_short *port_num, char** ip) {
 
 	/* renvoie le numero de descripteur */
 	/* et modifie le parametre port_num */
-	// TODO corriger les warnings
 	if (ip == NULL)
 		sock_addr = get_addr_info(0, NULL); // 0, c-à-d qu'on laisse le système choisir un port
 	else

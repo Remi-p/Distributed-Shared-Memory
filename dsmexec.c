@@ -44,7 +44,6 @@ int main(int argc, char *argv[]) {
         
         /* 1- on recupere le nombre de processus a lancer */
         num_procs = count_process_nb(argv[1]);
-        // TODO : Vérification que les noms de machine = alphanumérique
 
         /* 2- on recupere les noms des machines : le nom de */
         /* la machine est un des elements d'identification */

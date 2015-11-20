@@ -25,7 +25,7 @@ int count_process_nb(char * machine_file);
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
 // Acceptation des connexions et enregistrement des informations
-void acceptation_connexions(int* num_procs, int listen_socket,dsm_proc_t **proc_array);
+void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc_array);
 
 // Affichage des données reçues sur les tubes
 void affichage_tubes(int *num_procs, dsm_proc_t **proc_array);

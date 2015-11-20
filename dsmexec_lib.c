@@ -127,19 +127,17 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 			// Fermeture des descripteurs de fichier
 			close((*process)[i].stderr);
 			close((*process)[i].stdout);
-	
-			// TODO : Simplification possible (dans ts les cas on fait le même realloc)
-			// Si c'est le dernier élément :
-			if (i == proc_qty -1) {
-				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			}
-			// Sinon, on gère avec memmove
-			else {
+			
+			// Si ce n'est pas le dernier élément, on déplace la mémoire
+			if (i != proc_qty -1)
 				memmove((*process) + i,
 						(*process) + i + 1,
 						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
-				*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			}
+			
+			// Réallocation de la mémoire avec la taille nécessaire
+			*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
+			
+			if (VERBOSE) fprintf(stdout, "Délétion du processus de rang %i\n", rank);
 			
 			(*nb_process)--;
 			return;
@@ -279,7 +277,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 	int i, j, k;
 	fd_set readfds;
 	struct timeval timeout;
-		timeout.tv_sec = 2;
+		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 	int res;
         
@@ -291,20 +289,18 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 		FD_ZERO(&readfds);
 		FD_SET(listen_socket, &readfds); 
 		
-		while ((res = select(2, &readfds, NULL, NULL, &timeout)) == -1);
+		fprintf(stdout, "Select pour accept (n°%i)\n", i);
+		
+		while ((res = select(listen_socket + 1, &readfds, NULL, NULL, &timeout)) == -1)
 			if ( errno != EINTR )
 				error("Erreur lors du select ");
 		
 		if(res != 0) {
+			
 			accept_sckt = do_accept(listen_socket, adr_tmp);
 		
-			// TOASK : Pas de récupération du nom de machine ?
-			/* On recupere le nom de la machine distante */
-			/* 1- d'abord la taille de la chaine */
-			/* 2- puis la chaine elle-meme */
-		
-			// On récupère plutot le rang de la machine dans le tableau
-			// de la structure
+			// On récupère le rang de la machine dans le tableau de la
+			// structure, plutôt que son nom
 			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
 			
 			// On enregistre le fd de la socket
@@ -326,7 +322,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 	// On les supprime du tableau de structure
 	for(k=0; k < *num_procs; k++) {
 		if((*proc_array)[k].connect_info.socket == 0) 
-			remove_from_rank(proc_array, num_procs, (*proc_array)[j].connect_info.rank) ;
+			remove_from_rank(proc_array, num_procs, (*proc_array)[k].connect_info.rank) ;
 	}
 	
 }
@@ -351,6 +347,8 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 		fds = realloc(fds, sizeof(struct pollfd) * (*num_procs * 2));
 		nb_tubes = 0;
 	
+		if (VERBOSE) bold("\n== Ajout des tubes du processus au poll\n");
+	
 		for (i = 0; i < *num_procs ; i++) {
 			// stdout
 			fds[2*i].fd = (*proc_array)[i].stdout;
@@ -360,7 +358,7 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			fds[2*i+1].fd = (*proc_array)[i].stderr;
 			fds[2*i+1].events = POLLIN | POLLHUP;
 			
-			if (VERBOSE) fprintf(stdout, "Ajout des tubes du processus au poll (i=%i) : %i & %i\n",
+			if (VERBOSE) fprintf(stdout, "(i=%i) : %i & %i\n",
 								i, (*proc_array)[i].stderr, (*proc_array)[i].stdout);
 			
 			nb_tubes += 2;
@@ -374,7 +372,7 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			if ( errno != EINTR )
 				error("Erreur lors du select ");
 		
-		if (VERBOSE) bold("\n== For de selection, %i process\n");
+		if (VERBOSE) bold("\n== Boucle for d'affichage, %i process\n", *num_procs);
 		
 		// Le poll à réussi :
 		for (i = 0; i < *num_procs ; i++) {
