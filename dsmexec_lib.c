@@ -10,7 +10,19 @@ void usage(void) {
 	exit(EXIT_FAILURE);
 }
 
-// TODO : Faire la même chose pour le texte en gras des titres de section
+// Affiche un texte en gras
+void bold(char *text, ...) {
+	
+	fprintf(stdout, "%s", ANSI_STYLE_BOLD);
+	
+	va_list arglist;
+	va_start( arglist, text );
+	vfprintf( stdout, text, arglist );
+	va_end( arglist );
+   
+	fprintf(stdout, "%s", ANSI_RESET);
+}
+
 // Affiche un texte souligné
 void underlined(char *text, ...) {
 	
@@ -217,8 +229,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 
 			newargv[0] = "ssh";
 			newargv[1] = proc_array[i].connect_info.machine_name;
-			// TODO : remettre la définition dynamique du chemin
-			newargv[2] = "/net/malt/t/rperrot/Cours/PR204/Distributed-Shared-Memory/bin/dsmwrap";
+			newargv[2] = exec_path;
 			newargv[3] = ip; // IP du serveur (fichier courant)
 			newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
 				sprintf(newargv[4], "%i", port_num); // Port du serveur

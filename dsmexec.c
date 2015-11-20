@@ -60,14 +60,14 @@ int main(int argc, char *argv[]) {
         /* ========================================================== *\
                               Création des fils
         \* ========================================================== */
-        if (VERBOSE) printf("%s= Boucle de création des fils%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+        if (VERBOSE) bold("= Boucle de création des fils\n");
         
         lancement_processus_fils(num_procs, proc_array, ip, port_num, argc, argv, &num_procs_creat);
         
         /* ========================================================== *\
                           Acceptation des connexions
         \* ========================================================== */
-        if (VERBOSE) printf("\n%s= Boucle d'acceptation de connexion%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+        if (VERBOSE) bold("\n= Boucle d'acceptation de connexion\n");
         
         acceptation_connexions(num_procs, listen_socket);
 
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
         /* ========================================================== *\
                      Affichage des données reçues sur les tubes
         \* ========================================================== */
-        if (VERBOSE) printf("\n%s= Boucle de lecture des tubes%s\n", ANSI_STYLE_BOLD, ANSI_RESET);
+        if (VERBOSE) bold("\n= Boucle de lecture des tubes\n");
         
         affichage_tubes(&num_procs, &proc_array);
         

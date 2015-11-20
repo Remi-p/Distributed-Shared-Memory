@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-
+#include <ctype.h> 
 #include <poll.h>
 
 #include <ifaddrs.h> // Récupération de l'addr. ip depuis les interfaces
