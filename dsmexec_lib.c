@@ -189,6 +189,20 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 	// faudra fermer
 	int fd_to_close[2];
 	
+	// Nom de la machine serveur
+	char * hostname = malloc(sizeof(char) * NAME_MAX);
+	gethostname(hostname, sizeof(char) * NAME_MAX);
+	
+	// Port du serveur
+	char * port = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
+	sprintf(port, "%i", port_num); // Port du serveur
+	
+	// ------------- Nombres d'arguments pour le ssh
+	// 6 = Nombre d'arguments entré en "dur"
+	// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
+	// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
+	// 1 = Dernier élement, = NULL
+	u_short newargc = 6 + argc - 2 + 1;
 	// ----------------------------------------------------------------
 	
 	for(i = 0; i < num_procs ; i++) {
@@ -230,14 +244,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 			/* ====================================================== *\
 					 Creation du tableau d'arguments pour le ssh 
 			\* ====================================================== */
-			// 6 = Nombre d'arguments ci-après
-			// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
-			// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
-			// 1 = Dernier élement, = NULL
-			u_short newargc = 6 + argc - 2 + 1;
 			char **newargv = malloc(sizeof(char *) * newargc);
-			char * hostname = malloc(sizeof(char * NAME_MAX);
-			gethostname(hostname, sizeof(char * NAME_MAX);
 			
 			sprintf(exec_path, "%s/bin/dsmwrap", wd_ptr);
 
@@ -245,8 +252,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 			newargv[1] = proc_array[i].connect_info.machine_name;
 			newargv[2] = exec_path;
 			newargv[3] = hostname; // Hostname du serveur (fichier courant)
-			newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
-				sprintf(newargv[4], "%i", port_num); // Port du serveur
+			newargv[4] = port; // Port du serveur
 			newargv[5] = malloc(sizeof(char) * 3);
 				sprintf(newargv[5], "%i", i); // Rang du processus (distant)
 			
