@@ -93,3 +93,4 @@ int do_accept(int sckt, struct sockaddr* adresse);
 bool do_read(int socket, void *output, int taille, enum code* code_ret);
 void handle_message(int socket, const void *input, int taille);
 struct sockaddr_in* get_addr_info(int port, char* hostname);
+int hostname_to_ip(char * hostname , char* ip);
