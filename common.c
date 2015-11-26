@@ -244,6 +244,7 @@ struct sockaddr_in* get_addr_info(int port, char* hostname) {
 /* Get ip from domain name */
 int hostname_to_ip(char * hostname , char* ip)
 {
+	char * ip
     struct hostent *he;
     struct in_addr **addr_list;
     int i;

@@ -19,7 +19,7 @@ int main(int argc, char **argv)
    //~ wrap_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
    
    // Récupération de la struct sock_addr du lanceur
-   launcher_ip_addr = hostname_to_ip(argv[1]);
+   hostname_to_ip(launcher_ip_addr);
    launcher_port = atoi(argv[2]);
    launcher_addr = get_addr_info(launcher_port, launcher_ip_addr);
    

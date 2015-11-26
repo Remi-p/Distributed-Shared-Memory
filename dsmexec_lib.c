@@ -225,13 +225,15 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 			// 1 = Dernier élement, = NULL
 			u_short newargc = 6 + argc - 2 + 1;
 			char **newargv = malloc(sizeof(char *) * newargc);
+			char * hostname = malloc(sizeof(char * NAME_MAX);
+			gethostname(hostname, sizeof(char * NAME_MAX);
 			
 			sprintf(exec_path, "%s/bin/dsmwrap", wd_ptr);
 
 			newargv[0] = "ssh";
 			newargv[1] = proc_array[i].connect_info.machine_name;
 			newargv[2] = exec_path;
-			newargv[3] = ip; // IP du serveur (fichier courant)
+			newargv[3] = hostname; // Hostname du serveur (fichier courant)
 			newargv[4] = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
 				sprintf(newargv[4], "%i", port_num); // Port du serveur
 			newargv[5] = malloc(sizeof(char) * 3);
