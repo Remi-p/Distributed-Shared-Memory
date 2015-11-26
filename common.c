@@ -45,7 +45,6 @@ int creer_socket(int prop, u_short *port_num, char** ip) {
 	socklen_t sock_addrlen;
 	int fd = 0;
    
-	// TOASK : Y-a-t-il un moyen + dynamique ?
 	if (ip != NULL) store_ip("em1", ip);
 	
 	/* fonction de creation et d'attachement */
