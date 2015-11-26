@@ -90,10 +90,10 @@ int main(int argc, char *argv[]) {
         fprintf(stdout, "Extinction du programme.\n");
 
         /* on attend les processus fils */
-        // TOASK : Ne sont-ils pas fermés tout seul + supprimé lorsque
-        //         le tube se ferme ?
+        // <= Gérer avec sigchld_handler()
 
         /* on ferme les descripteurs proprement */
+        // <= Gérer dans affichage_tubes()
 
         /* on ferme la socket d'ecoute */
         close(listen_socket);

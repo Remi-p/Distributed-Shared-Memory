@@ -74,7 +74,6 @@ void lecture_tube(int fd) {
 	free(buffer);
 }
 
-// TOASK : Ne vaut-il pas mieux une liste chaînée ?
 /* retourne un tableau de struct dsm_proc */
 /* de taille du nombre de processus */
 /* contenant le nom de la machine + le rang */
@@ -127,6 +126,9 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 			// Fermeture des descripteurs de fichier
 			close((*process)[i].stderr);
 			close((*process)[i].stdout);
+			
+			// Fermeture de la socket
+			close((*process)[i].connect_info.socket);
 			
 			// Si ce n'est pas le dernier élément, on déplace la mémoire
 			if (i != proc_qty -1)
@@ -182,6 +184,11 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 	int fd_stdout[2]; 	// fd_stdout[0] : extremité en lecture
 						// fd_stdout[1] : extremité en écriture
 	int fd_stderr[2];
+	
+	// Il y aura des descripteurs de fichier hérités dans le fils, qu'il
+	// faudra fermer
+	int fd_to_close[2];
+	
 	// ----------------------------------------------------------------
 	
 	for(i = 0; i < num_procs ; i++) {
@@ -199,6 +206,10 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 		if(pid == -1) ERROR_EXIT("fork");
 
 		if (pid == 0) { /* fils */	
+
+			// Inutile pour le fils :
+			close(fd_to_close[0]);
+			close(fd_to_close[1]);
 
 			if (VERBOSE) printf("Création du fils n°%i\n", i);
 
@@ -262,6 +273,10 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 			// programme :
 			proc_array[i].stderr = fd_stderr[0];
 			proc_array[i].stdout = fd_stdout[0];
+			
+			// À supprimer dans le fils
+			fd_to_close[0] = fd_stderr[0];
+			fd_to_close[1] = fd_stdout[0];
 
 			(*num_procs_creat)++;
 		}
