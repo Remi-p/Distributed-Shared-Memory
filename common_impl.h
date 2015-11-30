@@ -35,7 +35,7 @@
 /* definition du type des infos */
 /* de connexion des processus dsm */
 struct dsm_proc_conn  {
-   int rank;
+   u_short rank;
    int socket;
    u_short port;
    char * machine_name;

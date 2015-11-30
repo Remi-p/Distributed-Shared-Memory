@@ -246,7 +246,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 	
 	struct sockaddr* adr_tmp;
 	int accept_sckt;
-	int rank_machine;
+	u_short rank_machine;
 	u_short wrap_port;
 	// pid_t wrap_pid;
 	int i, j, k;
@@ -276,7 +276,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 		
 			// On récupère le rang de la machine dans le tableau de la
 			// structure, plutôt que son nom
-			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
+			do_read(accept_sckt, &rank_machine, sizeof(u_short), NULL);
 			
 			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
 			
