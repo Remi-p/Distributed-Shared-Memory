@@ -74,44 +74,6 @@ void lecture_tube(int fd) {
 	free(buffer);
 }
 
-/* retourne un tableau de struct dsm_proc */
-/* de taille du nombre de processus */
-/* contenant le nom de la machine + le rang */
-dsm_proc_t* machine_names(char * name_file, int process_nb) {
-	
-	FILE * fichier;
-	dsm_proc_t* proc_array = malloc(process_nb * sizeof(struct dsm_proc));
-	int i = 0;
-	char * machine = (char *) malloc(NAME_MAX * sizeof(char));
-	
-	if( (fichier = fopen(name_file, "r")) == NULL)
-		perror("fopen");
-		
-	while(fgets(machine, NAME_MAX, fichier) != NULL) {
-		
-		proc_array[i].connect_info.machine_name = (char *) malloc(strlen(machine) - 1);
-		
-		// Ceci remplace le saut de ligne par une fin de ligne, et stop
-		// strcpy
-		machine[strlen(machine) - 1] = '\0';
-		
-		// On enlève le retour chariot en même temps que l'on copie la chaîne
-		if(check_machine_name(machine) == false)
-			error("check_machine_name");
-			
-		strcpy(proc_array[i].connect_info.machine_name, machine);
-		
-		// On enregistre le rang, car des machines pourront être fermées
-		// et changer ainsi l'ordre naturel du tableau
-		proc_array[i].connect_info.rank = i;
-		
-		i++;
-	}
-	
-	return proc_array;
-	
-}
-
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 	
@@ -151,31 +113,14 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 	
 }
 
-/* compte le nombre de processus a lancer */
-int count_process_nb(char * machine_file) {
-	
-	int c;
-	unsigned int process_nb = 0;
-	FILE * fichier;
-	
-	if( (fichier = fopen(machine_file, "r")) == NULL)
-		return -1;
-		
-	while( (c = fgetc(fichier)) != EOF ){
-		if(c == '\n')
-			++process_nb;
-	}
-	
-	return process_nb;
-}
-
 void lancement_processus_fils(int num_procs, dsm_proc_t *proc_array,
 char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_creat) {
 	
 	// Définition des variables =======================================
 	pid_t pid;
 	int i, j;
-	char exec_path[1024];
+	char exec_dsmwrap[1024];
+	char path_machines[1024];
 	char str[1024];
 	char *wd_ptr = NULL;
 	wd_ptr = getcwd(str,1024);
@@ -197,12 +142,18 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 	char * port = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
 	sprintf(port, "%i", port_num); // Port du serveur
 	
+	// Chemin vers dsmwrap
+	sprintf(exec_dsmwrap, "%s/bin/dsmwrap", wd_ptr);
+	
+	// Chemin vers machine_file
+	sprintf(path_machines, "%s/%s", wd_ptr, argv[1]);
+	
 	// ------------- Nombres d'arguments pour le ssh
-	// 6 = Nombre d'arguments entré en "dur"
+	// 7 = Nombre d'arguments entré en "dur"
 	// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
 	// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
 	// 1 = Dernier élement, = NULL
-	u_short newargc = 6 + argc - 2 + 1;
+	u_short newargc = 7 + argc - 2 + 1;
 	// ----------------------------------------------------------------
 	
 	for(i = 0; i < num_procs ; i++) {
@@ -245,21 +196,20 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 					 Creation du tableau d'arguments pour le ssh 
 			\* ====================================================== */
 			char **newargv = malloc(sizeof(char *) * newargc);
-			
-			sprintf(exec_path, "%s/bin/dsmwrap", wd_ptr);
 
 			newargv[0] = "ssh";
 			newargv[1] = proc_array[i].connect_info.machine_name;
-			newargv[2] = exec_path;
+			newargv[2] = exec_dsmwrap;
 			newargv[3] = hostname; // Hostname du serveur (fichier courant)
 			newargv[4] = port; // Port du serveur
 			newargv[5] = malloc(sizeof(char) * 3);
 				sprintf(newargv[5], "%i", i); // Rang du processus (distant)
+			newargv[6] = path_machines; // fichier de la machine
 			
 			// Pour les autres arguments, on complète avec ceux donnés lors de l'appel
 			for (j = 2; j < argc; j++) {
-				newargv[j + 6 - 2] = malloc(sizeof(char) * strlen(argv[j]));
-				strcpy(newargv[j + 4], argv[j]);
+				newargv[j + 7 - 2] = malloc(sizeof(char) * strlen(argv[j]));
+				strcpy(newargv[j + 5], argv[j]);
 			}
 			// Dernier de la liste d'arguments
 			newargv[newargc - 1] = NULL;
@@ -430,15 +380,4 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	};
 	
 	free(fds);
-}
-
-// Check is a string is alphanumeric
-int check_machine_name(char * name) {
-	int i;
-	for(i = 0; i < strlen(name); i++) {
-		if(isalnum(name[i]) == false) {
-			return false;
-		}
-	}
-	return true;
 }

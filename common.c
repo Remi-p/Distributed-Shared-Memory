@@ -12,6 +12,74 @@ void addr_verbose(struct sockaddr_in sockaddr, char *env) {
 	
 }
 
+// Verifie que les noms de machine sont en alphanumeriques
+// Check is a string is alphanumeric
+int check_machine_name(char * name) {
+	int i;
+	for(i = 0; i < strlen(name); i++) {
+		if(isalnum(name[i]) == false) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/* compte le nombre de processus a lancer */
+int count_process_nb(char * machine_file) {
+	
+	int c;
+	unsigned int process_nb = 0;
+	FILE * fichier;
+	
+	if( (fichier = fopen(machine_file, "r")) == NULL)
+		return -1;
+		
+	while( (c = fgetc(fichier)) != EOF ){
+		if(c == '\n')
+			++process_nb;
+	}
+	
+	return process_nb;
+}
+
+/* retourne un tableau de struct dsm_proc */
+/* de taille du nombre de processus */
+/* contenant le nom de la machine + le rang */
+dsm_proc_t* machine_names(char * name_file, int process_nb) {
+	
+	FILE * fichier;
+	dsm_proc_t* proc_array = malloc(process_nb * sizeof(struct dsm_proc));
+	int i = 0;
+	char * machine = (char *) malloc(NAME_MAX * sizeof(char));
+	
+	if( (fichier = fopen(name_file, "r")) == NULL)
+		perror("fopen");
+		
+	while(fgets(machine, NAME_MAX, fichier) != NULL) {
+		
+		proc_array[i].connect_info.machine_name = (char *) malloc(strlen(machine) - 1);
+		
+		// Ceci remplace le saut de ligne par une fin de ligne, et stop
+		// strcpy
+		machine[strlen(machine) - 1] = '\0';
+		
+		// On enlève le retour chariot en même temps que l'on copie la chaîne
+		if(check_machine_name(machine) == false)
+			error("check_machine_name");
+			
+		strcpy(proc_array[i].connect_info.machine_name, machine);
+		
+		// On enregistre le rang, car des machines pourront être fermées
+		// et changer ainsi l'ordre naturel du tableau
+		proc_array[i].connect_info.rank = i;
+		
+		i++;
+	}
+	
+	return proc_array;
+	
+}
+
 void store_ip(char* interface, char ** ip) {
 	
 	// Pour l'adresse IP à donner aux processus distants, on récupère

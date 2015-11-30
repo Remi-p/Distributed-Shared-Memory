@@ -82,9 +82,15 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 // Segmentation fault
 void gdb_stop();
 	
+/* Retourne un tableau de struct dsm_proc  de taille du nombre de
+ * processus contenant le nom de la machine + le rang */
+dsm_proc_t* machine_names(char * name_file, int process_nb);
+
+/* compte le nombre de processus à lancer */
+int count_process_nb(char * machine_file);
+
 int creer_socket(int type, u_short *port_num, char** ip);
 int count_process_nb(char * machine_file);
-dsm_proc_t* machine_names(char * name_file, int process_nb);
 int do_socket(int domain, int type, int protocol);
 int do_connect(int socket, struct sockaddr_in serv_add);
 void do_bind(int socket, struct sockaddr_in* serv_add);
@@ -93,4 +99,5 @@ int do_accept(int sckt, struct sockaddr* adresse);
 bool do_read(int socket, void *output, int taille, enum code* code_ret);
 void handle_message(int socket, const void *input, int taille);
 struct sockaddr_in* get_addr_info(int port, char* hostname);
+
 int hostname_to_ip(char * hostname , char* ip);

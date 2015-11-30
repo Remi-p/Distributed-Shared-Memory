@@ -77,8 +77,7 @@ int main(int argc, char *argv[]) {
         /* envoi des infos de connexion aux processus */
 
         /* gestion des E/S : on recupere les caracteres */
-        /* sur les tubes de redirection de stdout/stderr */     
-        
+        /* sur les tubes de redirection de stdout/stderr */
         /* ========================================================== *\
                      Affichage des données reçues sur les tubes
         \* ========================================================== */
@@ -90,10 +89,10 @@ int main(int argc, char *argv[]) {
         fprintf(stdout, "Extinction du programme.\n");
 
         /* on attend les processus fils */
-        // <= Gérer avec sigchld_handler()
+        // <= Géré avec sigchld_handler()
 
         /* on ferme les descripteurs proprement */
-        // <= Gérer dans affichage_tubes()
+        // <= Géré dans affichage_tubes()
 
         /* on ferme la socket d'ecoute */
         close(listen_socket);
