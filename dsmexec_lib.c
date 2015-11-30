@@ -247,6 +247,8 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 	struct sockaddr* adr_tmp;
 	int accept_sckt;
 	int rank_machine;
+	u_short wrap_port;
+	// pid_t wrap_pid;
 	int i, j, k;
 	fd_set readfds;
 	struct timeval timeout;
@@ -276,19 +278,27 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 			// structure, plutôt que son nom
 			do_read(accept_sckt, &rank_machine, sizeof(int), NULL);
 			
+			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
+			
+			/* On recupere le pid du processus distant  */
+			// do_read(accept_sckt, &wrap_pid, sizeof(pid_t), NULL);
+			
+			//fprintf(stdout, "pid deviné : %i\n", wrap_pid);
+
+			/* On recupere le numero de port de la socket */
+			/* d'ecoute des processus distants */
+			do_read(accept_sckt, &wrap_port, sizeof(u_short), NULL);
+			
+			fprintf(stdout, "Port deviné : %i\n",wrap_port);
+			
 			// On enregistre le fd de la socket
 			// dans la structure associée au rang renvoyé
 			for(j=0; j < *num_procs; j++) {
-				if((*proc_array)[j].connect_info.rank == rank_machine) 
+				if((*proc_array)[j].connect_info.rank == rank_machine) { 
 					(*proc_array)[j].connect_info.socket = accept_sckt;
+					(*proc_array)[j].connect_info.port = wrap_port;
+				}
 			}
-			
-			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
-
-			/* On recupere le pid du processus distant  */
-			
-			/* On recupere le numero de port de la socket */
-			/* d'ecoute des processus distants */
 		}
 	}
 	// Si des accepts ne ce sont pas fait -> machine eteinte par ex

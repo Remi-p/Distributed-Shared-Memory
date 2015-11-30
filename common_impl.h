@@ -37,6 +37,7 @@
 struct dsm_proc_conn  {
    int rank;
    int socket;
+   u_short port;
    char * machine_name;
    /* a completer */
 };
