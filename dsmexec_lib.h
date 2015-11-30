@@ -22,3 +22,6 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 
 // Affichage des données reçues sur les tubes
 void affichage_tubes(int *num_procs, dsm_proc_t **proc_array);
+
+// Envoi des ports à toutes les machines
+void envoi_port(dsm_proc_t **proc_array, int* num_procs);

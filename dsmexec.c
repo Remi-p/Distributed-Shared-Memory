@@ -70,11 +70,10 @@ int main(int argc, char *argv[]) {
         
         acceptation_connexions(&num_procs, listen_socket, &proc_array);
 
-        /* envoi du nombre de processus aux processus dsm*/
-		
-        /* envoi des rangs aux processus dsm */
-
         /* envoi des infos de connexion aux processus */
+        if (VERBOSE) bold("\n= Boucle d'envoi des ports aux dsmwraps");
+        
+        envoi_port(&proc_array, &num_procs);
 
         /* gestion des E/S : on recupere les caracteres */
         /* sur les tubes de redirection de stdout/stderr */

@@ -391,3 +391,39 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	
 	free(fds);
 }
+
+// Envoi des ports à toutes les machines
+void envoi_port(dsm_proc_t **proc_array, int* num_procs) {
+	
+	int num = *num_procs;
+	int sckt;
+	int i;
+	
+	u_short u_short_size = sizeof(u_short);
+	int tab_size = (u_short_size*2) * num;
+	
+	// Création du tableau à envoyer
+	char* tableau = malloc( tab_size );
+	// On parcourt le tableau de case en case. Une case étant composée
+	// de deux u_short : rang + port
+	for (i = 0; i < *num_procs; i += u_short_size * 2) {
+		// Rang
+		*(tableau + i) = (*proc_array)[i].connect_info.rank;
+		*(tableau + i + u_short_size) = (*proc_array)[i].connect_info.port;
+	}
+	
+	for (i = 0; i < *num_procs; i++) {
+		
+		sckt = (*proc_array)[i].connect_info.socket;
+		
+		// Envoi du nombre de processus
+		handle_message(sckt, &num, sizeof(int));
+		
+		// Envoi de la liste complète
+		handle_message(sckt, &tableau, tab_size);
+		
+	}
+	
+	free(tableau);
+	
+}
