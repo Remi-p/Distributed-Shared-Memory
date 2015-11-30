@@ -333,3 +333,15 @@ int hostname_to_ip(char * hostname , char* ip)
      
     return 1;
 }
+
+int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port)
+{
+	int i;
+	for(i=0; i < num_procs; i++) {
+		if(proc_array[i].connect_info.rank == rank) {
+			proc_array[i].connect_info.port = port;
+			return true;
+		}
+	}
+	return false;
+}

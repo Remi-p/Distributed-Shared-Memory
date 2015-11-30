@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 	u_short launcher_port, wrap_port, b_wrap_port;
 	int wrap_rank;
 	pid_t pid;
-
+	u_short proc_nb, proc_port, proc_rank;
 	// Nombre de processus
 	int num_procs;
 	// Tableau des structures
@@ -55,11 +55,24 @@ int main(int argc, char **argv)
 	/* le systeme choisit le port */ 
 	handle_message(wrap_socket, &b_wrap_port, sizeof(u_short));
 
-	// Récupération des noms de machines + structures
 
 	/* =============== Lecture du fichier de machines =============== */
 	num_procs = count_process_nb(argv[4]);
 	proc_array = machine_names(argv[4], num_procs);
+	
+	// Récupération des noms de machines + structures
+	// Récupération du nombre de processus
+	do_read(wrap_socket, &proc_nb, sizeof(u_short), NULL);
+	int j;
+	for(j= 0; j < proc_nb; j++) {
+		// Rang
+		do_read(wrap_socket, &proc_rank, sizeof(u_short), NULL);
+		
+		// Port
+		do_read(wrap_socket, &proc_port, sizeof(u_short), NULL);
+		
+		fill_proc_array(proc_array, num_procs, proc_rank, proc_port);
+	}
 
 	/* pour qu'il le propage à tous les autres */
 	/* processus dsm */
