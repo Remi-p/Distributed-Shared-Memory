@@ -74,45 +74,6 @@ void lecture_tube(int fd) {
 	free(buffer);
 }
 
-// Enlève un élément du tableau de processus
-void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
-	
-	int i;
-	int proc_qty = *nb_process;
-	
-	for (i = 0; i < proc_qty; i++) {
-		
-		// La cellule à supprimer à été localisée
-		if((*process)[i].connect_info.rank == rank) {
-	
-			// Fermeture des descripteurs de fichier
-			close((*process)[i].stderr);
-			close((*process)[i].stdout);
-			
-			// Fermeture de la socket
-			close((*process)[i].connect_info.socket);
-			
-			// Si ce n'est pas le dernier élément, on déplace la mémoire
-			if (i != proc_qty -1)
-				memmove((*process) + i,
-						(*process) + i + 1,
-						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
-			
-			// Réallocation de la mémoire avec la taille nécessaire
-			*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			
-			if (VERBOSE) fprintf(stdout, "Délétion du processus de rang %i\n", rank);
-			
-			(*nb_process)--;
-			return;
-		}
-		
-	}
-	
-	error("Rank not found");
-	
-}
-
 void lancement_processus_fils(int num_procs, dsm_proc_t *proc_array,
 char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_creat) {
 	
@@ -172,25 +133,25 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 
 		if (pid == 0) { /* fils */	
 
-			// Inutile pour le fils :
-			close(fd_to_close[0]);
-			close(fd_to_close[1]);
-
-			if (VERBOSE) printf("Création du fils n°%i\n", i);
-
-			/* redirection stdout */
-			close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
-
-			close(STDOUT_FILENO);// On remplace stdout par fd[1]
-			dup(fd_stdout[1]);
-			close(fd_stdout[1]);
-
-			/* redirection stderr */	  
-			close(fd_stderr[0]);
-
-			close(STDERR_FILENO);
-			dup(fd_stderr[1]);
-			close(fd_stderr[1]);
+			//~ // Inutile pour le fils :
+			//~ close(fd_to_close[0]);
+			//~ close(fd_to_close[1]);
+//~ 
+			//~ if (VERBOSE) printf("Création du fils n°%i\n", i);
+//~ 
+			//~ /* redirection stdout */
+			//~ close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
+//~ 
+			//~ close(STDOUT_FILENO);// On remplace stdout par fd[1]
+			//~ dup(fd_stdout[1]);
+			//~ close(fd_stdout[1]);
+//~ 
+			//~ /* redirection stderr */	  
+			//~ close(fd_stderr[0]);
+//~ 
+			//~ close(STDERR_FILENO);
+			//~ dup(fd_stderr[1]);
+			//~ close(fd_stderr[1]);
 
 			/* ====================================================== *\
 					 Creation du tableau d'arguments pour le ssh 
@@ -264,7 +225,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 		FD_ZERO(&readfds);
 		FD_SET(listen_socket, &readfds); 
 		
-		fprintf(stdout, "Select pour accept (n°%i)\n", i);
+		// fprintf(stdout, "Select pour accept (n°%i)\n", i);
 		
 		while ((res = select(listen_socket + 1, &readfds, NULL, NULL, &timeout)) == -1)
 			if ( errno != EINTR )
@@ -278,8 +239,6 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 			// structure, plutôt que son nom
 			do_read(accept_sckt, &rank_machine, sizeof(u_short), NULL);
 			
-			fprintf(stdout, "Rang deviné : %i\n", rank_machine);
-			
 			/* On recupere le pid du processus distant  */
 			// do_read(accept_sckt, &wrap_pid, sizeof(pid_t), NULL);
 			
@@ -289,7 +248,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 			/* d'ecoute des processus distants */
 			do_read(accept_sckt, &wrap_port, sizeof(u_short), NULL);
 			
-			fprintf(stdout, "Port deviné : %i\n",wrap_port);
+			fprintf(stdout, "Rang deviné : %i / Port deviné : %i\n", rank_machine, wrap_port);
 			
 			// On enregistre le fd de la socket
 			// dans la structure associée au rang renvoyé
@@ -402,14 +361,16 @@ void envoi_port(dsm_proc_t **proc_array, int* num_procs) {
 	u_short u_short_size = sizeof(u_short);
 	int tab_size = (u_short_size*2) * num;
 	
+	// TODO : Tester avec u_short
+	
 	// Création du tableau à envoyer
-	char* tableau = malloc( tab_size );
+	u_short* tableau = malloc( tab_size );
 	// On parcourt le tableau de case en case. Une case étant composée
 	// de deux u_short : rang + port
-	for (i = 0; i < *num_procs; i += u_short_size * 2) {
+	for (i = 0; i < num; i++) {
 		// Rang
-		*(tableau + i) = (*proc_array)[i].connect_info.rank;
-		*(tableau + i + u_short_size) = (*proc_array)[i].connect_info.port;
+		tableau[2*i] = (*proc_array)[i].connect_info.rank;
+		tableau[2*i+1] = (*proc_array)[i].connect_info.port;
 	}
 	
 	for (i = 0; i < *num_procs; i++) {
@@ -420,7 +381,7 @@ void envoi_port(dsm_proc_t **proc_array, int* num_procs) {
 		handle_message(sckt, &num, sizeof(int));
 		
 		// Envoi de la liste complète
-		handle_message(sckt, &tableau, tab_size);
+		handle_message(sckt, tableau, tab_size);
 		
 	}
 	

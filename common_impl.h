@@ -90,6 +90,9 @@ dsm_proc_t* machine_names(char * name_file, int process_nb);
 /* compte le nombre de processus à lancer */
 int count_process_nb(char * machine_file);
 
+// Enlève un élément du tableau de processus
+void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
+
 int creer_socket(int type, u_short *port_num, char** ip);
 int count_process_nb(char * machine_file);
 int do_socket(int domain, int type, int protocol);

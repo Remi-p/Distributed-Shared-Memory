@@ -24,6 +24,45 @@ int check_machine_name(char * name) {
 	return true;
 }
 
+// Enlève un élément du tableau de processus
+void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
+	
+	int i;
+	int proc_qty = *nb_process;
+	
+	for (i = 0; i < proc_qty; i++) {
+		
+		// La cellule à supprimer à été localisée
+		if((*process)[i].connect_info.rank == rank) {
+	
+			// Fermeture des descripteurs de fichier
+			close((*process)[i].stderr);
+			close((*process)[i].stdout);
+			
+			// Fermeture de la socket
+			close((*process)[i].connect_info.socket);
+			
+			// Si ce n'est pas le dernier élément, on déplace la mémoire
+			if (i != proc_qty -1)
+				memmove((*process) + i,
+						(*process) + i + 1,
+						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
+			
+			// Réallocation de la mémoire avec la taille nécessaire
+			*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
+			
+			if (VERBOSE) fprintf(stdout, "Délétion du processus de rang %i\n", rank);
+			
+			(*nb_process)--;
+			return;
+		}
+		
+	}
+	
+	fprintf(stderr, "Rank %i not found\n", rank);
+	error("");
+}
+
 /* compte le nombre de processus a lancer */
 int count_process_nb(char * machine_file) {
 	
