@@ -93,6 +93,12 @@ int count_process_nb(char * machine_file);
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
+// Affiche un texte souligné
+void underlined(char *text, ...);
+
+// Liste les informations de connexion liées à un tableau de struct :
+void display_connect_info(dsm_proc_t *process, int num_process);
+	
 int creer_socket(int type, u_short *port_num, char** ip);
 int count_process_nb(char * machine_file);
 int do_socket(int domain, int type, int protocol);

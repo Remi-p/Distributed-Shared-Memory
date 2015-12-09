@@ -1,5 +1,7 @@
 #include "common_impl.h"
 
+#include <stdarg.h>
+
 // Display informations on a struct sockaddr_in
 void addr_verbose(struct sockaddr_in sockaddr, char *env) {
 	
@@ -9,6 +11,20 @@ void addr_verbose(struct sockaddr_in sockaddr, char *env) {
 	fprintf(stdout, "\tPort : %i\n\tAddr : %i\n", sockaddr.sin_port, sockaddr.sin_addr.s_addr);
 	
 	fprintf(stdout, "\tsin_family : %i\n\n", sockaddr.sin_family);
+	
+}
+
+// Liste les informations de connexion liées à un tableau de struct :
+void display_connect_info(dsm_proc_t *process, int num_process) {
+	
+	int i;
+	
+	for (i = 0; i < num_process; i++)
+		fprintf(stdout, "Process. de rang %i :\n\tsocket : %i\n\tport : %i\n\tnom : %s\n",
+			process[i].connect_info.rank,
+			process[i].connect_info.socket,
+			process[i].connect_info.port,
+			process[i].connect_info.machine_name);
 	
 }
 
@@ -22,6 +38,19 @@ int check_machine_name(char * name) {
 		}
 	}
 	return true;
+}
+
+// Affiche un texte souligné
+void underlined(char *text, ...) {
+	
+	fprintf(stdout, "%s", ANSI_STYLE_UNDERLINED);
+	
+	va_list arglist;
+	va_start( arglist, text );
+	vfprintf( stdout, text, arglist );
+	va_end( arglist );
+   
+	fprintf(stdout, "%s", ANSI_RESET);
 }
 
 // Enlève un élément du tableau de processus
@@ -237,7 +266,7 @@ int do_connect(int socket, struct sockaddr_in serv_add) {
 		error("Voici l'erreur concernant la connexion ");
 	}
 	
-	printf("Connexion réussie.\n\n");
+	//printf("Connexion réussie.\n\n");
 	
 	return conn;
 }

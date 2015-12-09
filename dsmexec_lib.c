@@ -23,19 +23,6 @@ void bold(char *text, ...) {
 	fprintf(stdout, "%s", ANSI_RESET);
 }
 
-// Affiche un texte souligné
-void underlined(char *text, ...) {
-	
-	fprintf(stdout, "%s", ANSI_STYLE_UNDERLINED);
-	
-	va_list arglist;
-	va_start( arglist, text );
-	vfprintf( stdout, text, arglist );
-	va_end( arglist );
-   
-	fprintf(stdout, "%s", ANSI_RESET);
-}
-
 void sigchld_handler(int sig) {
 	/* on traite les fils qui se terminent */
 	/* pour eviter les zombies */
@@ -50,6 +37,8 @@ void sigchld_handler(int sig) {
 
 // Lecture dans un tube, tant qu'il y a des données
 void lecture_tube(int fd) {
+	
+	// TODO : Afficher les infos d'un processus en tabulé
 	
 	char *buffer = malloc(sizeof(char) * BUFFER_MAX);
 	
@@ -133,25 +122,25 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 
 		if (pid == 0) { /* fils */	
 
-			//~ // Inutile pour le fils :
-			//~ close(fd_to_close[0]);
-			//~ close(fd_to_close[1]);
-//~ 
-			//~ if (VERBOSE) printf("Création du fils n°%i\n", i);
-//~ 
-			//~ /* redirection stdout */
-			//~ close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
-//~ 
-			//~ close(STDOUT_FILENO);// On remplace stdout par fd[1]
-			//~ dup(fd_stdout[1]);
-			//~ close(fd_stdout[1]);
-//~ 
-			//~ /* redirection stderr */	  
-			//~ close(fd_stderr[0]);
-//~ 
-			//~ close(STDERR_FILENO);
-			//~ dup(fd_stderr[1]);
-			//~ close(fd_stderr[1]);
+			// Inutile pour le fils :
+			close(fd_to_close[0]);
+			close(fd_to_close[1]);
+
+			if (VERBOSE) printf("Création du fils n°%i\n", i);
+
+			/* redirection stdout */
+			close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
+
+			close(STDOUT_FILENO);// On remplace stdout par fd[1]
+			dup(fd_stdout[1]);
+			close(fd_stdout[1]);
+
+			/* redirection stderr */	  
+			close(fd_stderr[0]);
+
+			close(STDERR_FILENO);
+			dup(fd_stderr[1]);
+			close(fd_stderr[1]);
 
 			/* ====================================================== *\
 					 Creation du tableau d'arguments pour le ssh 
@@ -321,7 +310,9 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	
 			if ((fds[2*i].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED, (*proc_array)[i].connect_info.machine_name, i, ANSI_RESET);
+				fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED,
+					(*proc_array)[i].connect_info.machine_name,
+					(*proc_array)[i].connect_info.rank, ANSI_RESET);
 				
 				lecture_tube((*proc_array)[i].stderr);
 				
@@ -331,7 +322,9 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			
 			if ((fds[2*i+1].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s > proc %i > stdout]\n", (*proc_array)[i].connect_info.machine_name, i);
+				fprintf(stdout, "[%s > proc %i > stdout]\n",
+					(*proc_array)[i].connect_info.machine_name,
+					(*proc_array)[i].connect_info.rank);
 				
 				lecture_tube((*proc_array)[i].stdout);
 				

@@ -1,7 +1,5 @@
 void usage(void);
 
-// Affiche un texte souligné
-void underlined(char *text, ...);
 // Affiche un text en gras
 void bold(char *text, ...);
 

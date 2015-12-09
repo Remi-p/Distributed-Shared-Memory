@@ -1,3 +1,10 @@
+/* ==================== Projet Système et Réseau ==================== *\
+ * Gourdel Thibaut                                          . \|/ /,  *
+ * Perrot Remi            =================                 \\`''/_-- *
+ * PR204                  |   dsmexec     |          Bordeaux INP --- *
+ * Décembre 2015          |   lanceur     |          ENSEIRB  ,..\\`  *
+ *                        =================          MATMECA / | \\`  *
+\* ================================================================== */
 #include "common_impl.h"
 
 #include "dsmexec_lib.h"
@@ -59,19 +66,19 @@ int main(int argc, char *argv[]) {
         /* ========================================================== *\
                               Création des fils
         \* ========================================================== */
-        if (VERBOSE) bold("= Boucle de création des fils\n");
+        if (VERBOSE) bold("= Création des fils\n");
         
         lancement_processus_fils(num_procs, proc_array, ip, port_num, argc, argv, &num_procs_creat);
         
         /* ========================================================== *\
                           Acceptation des connexions
         \* ========================================================== */
-        if (VERBOSE) bold("\n= Boucle d'acceptation de connexion\n");
+        if (VERBOSE) bold("\n= Acceptation de connexion\n");
         
         acceptation_connexions(&num_procs, listen_socket, &proc_array);
 
         /* envoi des infos de connexion aux processus */
-        if (VERBOSE) bold("\n= Boucle d'envoi des ports aux dsmwraps");
+        if (VERBOSE) bold("\n= Envoi des ports aux dsmwraps");
         
         envoi_port(&proc_array, &num_procs);
 
@@ -80,7 +87,7 @@ int main(int argc, char *argv[]) {
         /* ========================================================== *\
                      Affichage des données reçues sur les tubes
         \* ========================================================== */
-        if (VERBOSE) bold("\n= Boucle de lecture des tubes\n");
+        if (VERBOSE) bold("\n= Lecture des tubes\n");
         
         affichage_tubes(&num_procs, &proc_array);
         
