@@ -6,6 +6,7 @@
  *                        =================          MATMECA / | \\`  *
 \* ================================================================== */
 #include "common_impl.h"
+#include "common_net.h"
 
 #include "dsmexec_lib.h"
 

@@ -11,16 +11,16 @@ CFLAGS  =   -DREENTRANT -Wunused -Wall -g
 CCFLAGS = $(CFLAGS)
 LIBS =  -lpthread
 
-EXECS = common.o dsmexec dsmwrap truc dsmexec_lib.o
+EXECS = common.o common_net.o dsmexec dsmwrap truc dsmexec_lib.o
 
 default: $(EXECS)
 
 dsmexec: dsmexec.o common.o dsmexec_lib.o
-	$(CLINKER) $(OPTFLAGS) -o dsmexec dsmexec.o  common.o dsmexec_lib.o $(LIBS)
+	$(CLINKER) $(OPTFLAGS) -o dsmexec dsmexec.o  common.o common_net.o dsmexec_lib.o $(LIBS)
 	mv dsmexec ./bin
 
 dsmwrap: dsmwrap.o common.o
-	$(CLINKER) $(OPTFLAGS) -o dsmwrap dsmwrap.o  common.o $(LIBS)
+	$(CLINKER) $(OPTFLAGS) -o dsmwrap dsmwrap.o  common.o common_net.o $(LIBS)
 	mv dsmwrap ./bin
 
 truc: truc.o 

@@ -1,4 +1,5 @@
 #include "common_impl.h"
+#include "common_net.h"
 
 #include "dsmexec_lib.h"
 
@@ -122,7 +123,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 
 		if (pid == 0) { /* fils */	
 
-			// Inutile pour le fils :
+			//~ // Inutile pour le fils :
 			close(fd_to_close[0]);
 			close(fd_to_close[1]);
 
@@ -202,7 +203,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 	int i, j, k;
 	fd_set readfds;
 	struct timeval timeout;
-		timeout.tv_sec = 1;
+		timeout.tv_sec = TIMEOUT;
 		timeout.tv_usec = 0;
 	int res;
         
@@ -248,6 +249,9 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 				}
 			}
 		}
+		
+		free(adr_tmp);
+		// ERROR potentielle
 	}
 	// Si des accepts ne ce sont pas fait -> machine eteinte par ex
 	// On les supprime du tableau de structure

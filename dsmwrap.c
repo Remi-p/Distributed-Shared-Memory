@@ -6,6 +6,7 @@
  *                        =================          MATMECA / | \\`  *
 \* ================================================================== */
 #include "common_impl.h"
+#include "common_net.h"
 
 // Récupère les informations sur les processus frère envoyé par le
 // le lanceur
@@ -58,6 +59,58 @@ void recup_info_proc(int sckt, dsm_proc_t **proc_array, int *num_procs) {
         remove_from_rank(proc_array, num_procs, rank_to_delete[j]);
 }
 
+// Explosions de connexions
+void connexion_process(dsm_proc_t *proc_array, int sckt, int num_procs, u_short self_rank) {
+    
+    int i;
+    // Structure de stockage temporaire pour les accept
+    char ip_temporaire[INET_ADDRSTRLEN];
+    // Variable temporaire de récupération du rang
+    u_short rank;
+    // Nbr de process de rang inf.
+    u_short nb_process_inf = 0;
+    
+    // Nombre de processus de rang inférieur
+    for (i = 0; i < num_procs && proc_array[i].connect_info.rank < self_rank; i++)
+        nb_process_inf++;
+    
+    do_listen(sckt, nb_process_inf);
+    
+    fflush(stdout);
+    
+    // Connexion aux autres processus
+    for (i = 0; i < num_procs; i++) {
+        
+        // Pour les rangs inférieurs, ce sont eux qui font la connexion
+        if (proc_array[i].connect_info.rank < self_rank) {
+            
+            proc_array[i].connect_info.socket
+                = accept_and_rs_rank(sckt, &rank, self_rank);
+            
+            fprintf(stdout, "Acceptation du process %i\n", rank);
+            
+        }
+        
+        // Pour les rangs supérieurs, c'est ce fichier qui établi la
+        // connexion
+        else {
+            hostname_to_ip(proc_array[i].connect_info.machine_name, ip_temporaire);
+            
+            proc_array[i].connect_info.socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            
+            connect_and_sr_rank(
+                proc_array[i].connect_info.socket, // Socket
+                *(get_addr_info(proc_array[i].connect_info.port, ip_temporaire)), // Adresse
+                &rank, // Rang récupéré
+                self_rank);
+            
+            fprintf(stdout, "Connexion au process %i\n", rank );
+            
+        }
+    }
+    
+}
+
 /* processus intermediaire pour "nettoyer" la liste des arguments qu'on 
  * va passer a la commande a executer vraiment */
 int main(int argc, char **argv)
@@ -74,9 +127,6 @@ int main(int argc, char **argv)
     // Adresse IP du dsmexec
     struct sockaddr_in *launcher_addr;
     char launcher_ip_addr[INET_ADDRSTRLEN];
-    
-    // Structure de stockage temporaire pour les accept
-    char ip_temporaire[INET_ADDRSTRLEN];
     
     // Ports
     u_short launcher_port, wrap_port_ecoute;
@@ -143,43 +193,24 @@ int main(int argc, char **argv)
                         Connexion aux autres processus
     \* ============================================================== */
     
-    do_listen(wrap_socket_ecoute, num_procs);
-    
-    // Connexion aux autres processus
-    for (i = 0; i < num_procs; i++) {
-        
-        // Pour les rangs supérieurs, ce sont eux qui font la connexion
-        if (proc_array[i].connect_info.rank > self_rank) {
-            struct sockaddr *test = calloc(0, sizeof(struct sockaddr));
-            proc_array[i].connect_info.socket = do_accept(wrap_socket_ecoute, test);
-            fprintf(stdout, "Acceptation du process %i\n", i);
-        }
-        
-        // Pour les rangs inférieurs, c'est ce fichier qui établi la
-        // connexion
-        else {
-            hostname_to_ip(proc_array[i].connect_info.machine_name, ip_temporaire);
-            proc_array[i].connect_info.socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-            do_connect(proc_array[i].connect_info.socket,
-                       *(get_addr_info(proc_array[i].connect_info.port,
-                                       ip_temporaire)) );
-            fprintf(stdout, "Connexion au process %i\n", i);
-        }
-    }
+    connexion_process(proc_array, wrap_socket_ecoute, num_procs, self_rank);
     
     /* pour qu'il le propage à tous les autres */
     /* processus dsm */
 
     /* on execute la bonne commande */
 
-    for (i = 0; i <= argc; i++) {
+    for (i = 0; i <= argc; i++)
        if (VERBOSE) fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
-    }
 
     // TOASK : Le premier 'bonjour à tous' n'apparaît pas ?
     fprintf(stderr, "Bonjour à tous !\n");
     
-    // Fermeture des sockets
-
+    // Fermeture des sockets + libération des structures
+    for (i = num_procs - 1; i >= 0 ; i--)
+        remove_from_rank(&proc_array, &num_procs, proc_array[i].connect_info.rank);
+    
+    fflush(stdout);
+    
     return 0;
 }
