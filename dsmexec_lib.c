@@ -24,6 +24,7 @@ void bold(char *text, ...) {
 	fprintf(stdout, "%s", ANSI_RESET);
 }
 
+// Gestion de la terminaison des fils
 void sigchld_handler(int sig) {
 	/* on traite les fils qui se terminent */
 	/* pour eviter les zombies */
@@ -268,36 +269,38 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	int i;
 	
 	// Necessaire pour l'argument du poll
-	int nb_tubes;
+	int nb_tubes = 0;
 	// Buffer de réception sur les tubes
 	char buffer[BUFFER_MAX];
 	memset(buffer, 0, BUFFER_MAX * sizeof(char));
 	
-	// Ici on stockera tous les descripteurs de fichier pour les tubes
+	// On va enregistrer une fois pour toutes les descripteurs ici -----
 	struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (*num_procs * 2));
-	// On utilise un malloc pour pouvoir utiliser le realloc
+	nb_tubes = 0;
+
+	if (VERBOSE) bold("\n== Ajout des tubes du processus au poll\n");
+
+	for (i = 0; i < *num_procs ; i++) {
+		// stdout
+		fds[2*i].fd = (*proc_array)[i].stdout;
+		fds[2*i].events = POLLIN | POLLHUP;
+		 
+		// stderr
+		fds[2*i+1].fd = (*proc_array)[i].stderr;
+		fds[2*i+1].events = POLLIN | POLLHUP;
+		
+		if (VERBOSE) fprintf(stdout, "(i=%i) : %i & %i\n",
+							i, (*proc_array)[i].stderr, (*proc_array)[i].stdout);
+		
+		nb_tubes += 2;
+	}
+	// -----------------------------------------------------------------
+	
+	//~ // Ici on stockera tous les descripteurs de fichier pour les tubes
+	//~ struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (*num_procs * 2));
+	//~ // On utilise un malloc pour pouvoir utiliser le realloc
 
 	while(*num_procs > 0) {
-		
-		fds = realloc(fds, sizeof(struct pollfd) * (*num_procs * 2));
-		nb_tubes = 0;
-	
-		if (VERBOSE) bold("\n== Ajout des tubes du processus au poll\n");
-	
-		for (i = 0; i < *num_procs ; i++) {
-			// stdout
-			fds[2*i].fd = (*proc_array)[i].stdout;
-			fds[2*i].events = POLLIN | POLLHUP;
-			 
-			// stderr
-			fds[2*i+1].fd = (*proc_array)[i].stderr;
-			fds[2*i+1].events = POLLIN | POLLHUP;
-			
-			if (VERBOSE) fprintf(stdout, "(i=%i) : %i & %i\n",
-								i, (*proc_array)[i].stderr, (*proc_array)[i].stdout);
-			
-			nb_tubes += 2;
-		}
 		
 		// Poll ====================================================
 		
@@ -340,6 +343,18 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			// informations
 			if ((fds[2*i].events & POLLHUP) == POLLHUP || (fds[2*i+1].events & POLLHUP) == POLLHUP) {
 				remove_from_rank(proc_array, num_procs, (*proc_array)[i].connect_info.rank);
+				
+				// Suppression des descripteurs fermés de 'fds'
+				
+				// Si ce ne sont pas les derniers éléments, on déplace
+				// la mémoire
+				if (2*i+1 != nb_tubes)
+					memmove(fds + 2 * i,
+							fds + 2 * (i+1),
+							sizeof(struct pollfd) * (nb_tubes - 2 * (i+1)) );
+				
+				// Decrémentation du nombre de tubes
+				nb_tubes -= 2;
 			}
 		}
 

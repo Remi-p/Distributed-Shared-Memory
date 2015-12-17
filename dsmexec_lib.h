@@ -3,6 +3,7 @@ void usage(void);
 // Affiche un text en gras
 void bold(char *text, ...);
 
+// Gestion de la terminaison des fils
 void sigchld_handler(int sig);
 
 // Lecture dans un tube, tant qu'il y a des données

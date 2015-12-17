@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 
     if (VERBOSE) printf("Port socket ecoute : %i \n", wrap_port_ecoute);
 
-    /* Envoi du numero de port au lanceur. Le systeme choisit le port */ 
+    /* Envoi du numero de port au lanceur. Le système choisit le port */ 
     handle_message(wrap_socket, &wrap_port_ecoute, sizeof(u_short));
 
     /* =============== Lecture du fichier de machines =============== */

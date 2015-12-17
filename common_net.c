@@ -71,6 +71,7 @@ void store_ip(char* interface, char ** ip) {
 		error("IP de la machine non trouvée ");
 }
 
+// Renvoi le numéro de la socket, enregistre le port utilisé dans port_num
 int creer_socket(int prop, u_short *port_num, char** ip) {
 	
 	struct sockaddr_in *sock_addr;
@@ -100,8 +101,7 @@ int creer_socket(int prop, u_short *port_num, char** ip) {
 	return fd;
 }
 
-/* fonction do_socket */
-/* créer une socket */
+// Création d'une socket
 int do_socket(int domain, int type, int protocol) {
 	
     int sockfd;
@@ -139,8 +139,7 @@ void do_bind(int socket, struct sockaddr_in* serv_add) {
 	
 }
 
-/* Fonction do_connect */
-/* ask for connexion */
+/* Fonction do_connect : ask for connexion */
 int do_connect(int socket, struct sockaddr_in serv_add) {
 	
 	int conn = connect(socket, (struct sockaddr *) &serv_add, sizeof(struct sockaddr));
@@ -240,7 +239,7 @@ void handle_message(int socket, const void *input, int taille) {
 	while (offset!=taille);
 }
 
-// hostname can be NULL, we then use INADDR_ANY
+// hostname peut être NULL, on utilise INADDR_ANY dans ce cas
 struct sockaddr_in* get_addr_info(int port, char* hostname) {
 	
 	struct sockaddr_in* sin = calloc(sizeof(char), sizeof(struct sockaddr_in));

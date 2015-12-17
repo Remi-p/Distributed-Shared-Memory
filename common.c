@@ -150,6 +150,7 @@ void error(const char *msg) {
     exit(1);
 }
 
+// Enregistre le port au processus de rang rank
 int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port)
 {
 	int i;

@@ -101,6 +101,9 @@ void underlined(char *text, ...);
 
 // Liste les informations de connexion liées à un tableau de struct :
 void display_connect_info(dsm_proc_t *process, int num_process);
-	
+
+// Compte le nombre de processus à lancer
 int count_process_nb(char * machine_file);
+
+// Enregistre le port au processus de rang rank
 int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port);
