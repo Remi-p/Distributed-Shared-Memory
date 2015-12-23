@@ -1,7 +1,12 @@
 #include "dsm.h"
+#include "common_impl.h"
+#include "common_net.h"
 
 int DSM_NODE_NUM; /* nombre de processus dsm */
 int DSM_NODE_ID;  /* rang (= numero) du processus */ 
+
+// Tableau des structures des processus dsmwrap
+dsm_proc_t *PROC_ARRAY = NULL;
 
 /* indique l'adresse de debut de la page de numero numpage */
 static char *num2address( int numpage )
@@ -18,15 +23,15 @@ static char *num2address( int numpage )
 /* fonctions pouvant etre utiles */
 static void dsm_change_info( int numpage, dsm_page_state_t state, dsm_page_owner_t owner)
 {
-   if ((numpage >= 0) && (numpage < PAGE_NUMBER)) {	
-	if (state != NO_CHANGE )
-	table_page[numpage].status = state;
+   if ((numpage >= 0) && (numpage < PAGE_NUMBER)) {    
+    if (state != NO_CHANGE )
+    table_page[numpage].status = state;
       if (owner >= 0 )
-	table_page[numpage].owner = owner;
+    table_page[numpage].owner = owner;
       return;
    }
    else {
-	fprintf(stderr,"[%i] Invalid page number !\n", DSM_NODE_ID);
+    fprintf(stderr,"[%i] Invalid page number !\n", DSM_NODE_ID);
       return;
    }
 }
@@ -68,9 +73,9 @@ static void *dsm_comm_daemon( void *arg)
 {  
    while(1)
      {
-	/* a modifier */
-	printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
-	sleep(2);
+    /* a modifier */
+    printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
+    sleep(2);
      }
    return;
 }
@@ -117,20 +122,198 @@ static void segv_handler(int sig, siginfo_t *info, void *context)
 
    if ((addr >= (void *)BASE_ADDR) && (addr < (void *)TOP_ADDR))
      {
-	dsm_handler();
+    dsm_handler();
      }
    else
      {
-	/* SIGSEGV normal : ne rien faire*/
+    /* SIGSEGV normal : ne rien faire*/
      }
+}
+
+// Récupère les informations sur les processus frères envoyées par le
+// le lanceur
+void recup_info_proc(int sckt) {
+    
+    int j, i;
+    // Enregistre les rangs des processus a supprimer :
+    int rank_to_delete[DSM_NODE_NUM];
+    
+    // Nombre de processus ayant été effectivement lancé de dsmexec
+    int proc_nb;
+    
+    // Variables temporaires pour l'enregistrement dans le tableau de
+    // structures
+    u_short proc_port, proc_rank;
+    
+    // Récupération du nombre de processus
+    do_read(sckt, &proc_nb, sizeof(int), NULL);
+    
+    /* ================ Lecture des rangs de machines =============== */
+    
+    for(j= 0; j < proc_nb; j++) {
+        // Rang
+        do_read(sckt, &proc_rank, sizeof(u_short), NULL);
+        
+        // Port
+        do_read(sckt, &proc_port, sizeof(u_short), NULL);
+        
+        fprintf(stdout, "(%i) %i process. Rang %i : %i\n", j, proc_nb, proc_rank, proc_port);
+        
+        fill_proc_array(PROC_ARRAY, DSM_NODE_NUM, proc_rank, proc_port);
+    }
+    
+    // ----------------------- Suppression des processus non alloués ---
+    
+    // Allocation de -1 dans chaque cellule :
+    memset(rank_to_delete, -1, DSM_NODE_NUM * sizeof(int));
+    
+    i = 0; // <= Index des struct. à supprimer
+    
+    // Recherche des structures à supprimer ( => qui n'ont pas de ports)
+    for (j = 0; j < DSM_NODE_NUM; j++)
+        if (PROC_ARRAY[j].connect_info.port == 0) {
+            rank_to_delete[i] = PROC_ARRAY[j].connect_info.rank;
+            i++;
+        }
+    
+    // Suppression effective
+    for (j = 0; j < DSM_NODE_NUM && rank_to_delete[j] != -1; j++)
+        remove_from_rank(&PROC_ARRAY, &DSM_NODE_NUM, rank_to_delete[j]);
+}
+
+// Explosions de connexions
+void connexion_process(int sckt) {
+    
+    int i;
+    // Structure de stockage temporaire pour les accept
+    char ip_temporaire[INET_ADDRSTRLEN];
+    // Variable temporaire de récupération du rang
+    u_short rank;
+    // Nbr de process de rang inf.
+    u_short nb_process_inf = 0;
+    
+    // Nombre de processus de rang inférieur
+    for (i = 0; i < DSM_NODE_NUM && PROC_ARRAY[i].connect_info.rank < DSM_NODE_ID; i++)
+        nb_process_inf++;
+    
+    do_listen(sckt, nb_process_inf);
+    
+    fflush(stdout);
+    
+    // Connexion aux autres processus
+    for (i = 0; i < DSM_NODE_NUM; i++) {
+        
+        // Pour les rangs inférieurs, ce sont eux qui font la connexion
+        if (PROC_ARRAY[i].connect_info.rank < DSM_NODE_ID) {
+            
+            PROC_ARRAY[i].connect_info.socket
+                = accept_and_rs_rank(sckt, &rank, DSM_NODE_ID);
+            
+            fprintf(stdout, "Acceptation du process %i\n", rank);
+            
+        }
+        
+        // Pour les rangs supérieurs, c'est ce fichier qui établi la
+        // connexion
+        else {
+            hostname_to_ip(PROC_ARRAY[i].connect_info.machine_name, ip_temporaire);
+            
+            PROC_ARRAY[i].connect_info.socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            
+            connect_and_sr_rank(
+                PROC_ARRAY[i].connect_info.socket, // Socket
+                *(get_addr_info(PROC_ARRAY[i].connect_info.port, ip_temporaire)), // Adresse
+                &rank, // Rang récupéré
+                DSM_NODE_ID);
+            
+            fprintf(stdout, "Connexion au process %i\n", rank );
+            
+        }
+    }
+    
 }
 
 /* Seules ces deux dernieres fonctions sont visibles et utilisables */
 /* dans les programmes utilisateurs de la DSM                       */
-char *dsm_init(int argc, char **argv)
-{   
-   struct sigaction act;
-   int index;   
+char *dsm_init(int argc, char **argv) {
+    struct sigaction act;
+    int index;
+   
+    //                                               Depuis dsmwrap.c
+    /* ============================================================== *\
+                          Définition des variables
+    \* ============================================================== */
+    
+    // Sockets
+    int wrap_socket, wrap_socket_ecoute;
+    
+    // Adresse IP du dsmexec
+    struct sockaddr_in *launcher_addr;
+    char launcher_ip_addr[INET_ADDRSTRLEN];
+    
+    // Ports
+    u_short launcher_port, wrap_port_ecoute;
+    
+    // Rank du processus
+    DSM_NODE_ID = atoi(argv[3]);
+    
+    // Variable de boucle
+    int i;
+    
+    /* ============================================================== *\
+                                   Réseau
+    \* ============================================================== */
+    
+    /* Creation de la socket d'ecoute pour les connexions avec les 
+     * autres processus dsm */
+    wrap_socket_ecoute = creer_socket(0, &wrap_port_ecoute, NULL);
+
+    /* creation d'une socket pour se connecter au lanceur et envoyer/
+     * recevoir les infos necessaires pour la phase dsm_init */
+    wrap_socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    /* ======= Récupération de la struct sock_addr du lanceur ======= */
+    hostname_to_ip(argv[1], launcher_ip_addr);
+
+    launcher_port = atoi(argv[2]);
+    
+    if (VERBOSE) fprintf(stdout, "Adresse de %s : %s:%i\n", argv[1], launcher_ip_addr, launcher_port);
+    
+    launcher_addr = get_addr_info(launcher_port, launcher_ip_addr);
+
+    /* ==================== Connexion au lanceur ==================== */
+    do_connect(wrap_socket, *launcher_addr);
+
+    /* Envoi du rang de processus au lanceur */
+    handle_message(wrap_socket, &DSM_NODE_ID, sizeof(u_short));
+
+    if (VERBOSE) printf("Port socket ecoute : %i \n", wrap_port_ecoute);
+
+    /* Envoi du numero de port au lanceur. Le système choisit le port */ 
+    handle_message(wrap_socket, &wrap_port_ecoute, sizeof(u_short));
+
+    /* =============== Lecture du fichier de machines =============== */
+    DSM_NODE_NUM = count_process_nb(argv[4]);
+    PROC_ARRAY = machine_names(argv[4], DSM_NODE_NUM);
+    
+    /* ============================================================== *\
+          Récupération des infos de connexion aux autres processus
+    \* ============================================================== */
+    
+    recup_info_proc(wrap_socket);
+
+    // + Suppression de notre propre structure
+    remove_from_rank(&PROC_ARRAY, &DSM_NODE_NUM, DSM_NODE_ID);
+    
+    /* ============================================================== *\
+                        Connexion aux autres processus
+    \* ============================================================== */
+    
+    connexion_process(wrap_socket_ecoute);
+    
+    for (i = 0; i <= argc; i++)
+       if (VERBOSE) fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
+    
    
    /* reception du nombre de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_NUM)*/
@@ -146,9 +329,9 @@ char *dsm_init(int argc, char **argv)
    /* avec les autres processus : connect/accept */
    
    /* Allocation des pages en tourniquet */
-   for(index = 0; index < PAGE_NUMBER; index ++){	
+   for(index = 0; index < PAGE_NUMBER; index ++){    
      if ((index % DSM_NODE_NUM) == DSM_NODE_ID)
-       dsm_alloc_page(index);	     
+       dsm_alloc_page(index);         
      dsm_change_info( index, WRITE, index % DSM_NODE_NUM);
    }
    
@@ -166,14 +349,22 @@ char *dsm_init(int argc, char **argv)
    return ((char *)BASE_ADDR);
 }
 
-void dsm_finalize( void )
-{
-   /* fermer proprement les connexions avec les autres processus */
+void dsm_finalize( void ) {
+    
+    int i;
+    
+    /* fermer proprement les connexions avec les autres processus */
 
-   /* terminer correctement le thread de communication */
-   /* pour le moment, on peut faire : */
-   pthread_cancel(comm_daemon);
-   
-  return;
+    // Fermeture des sockets + libération des structures
+    for (i = DSM_NODE_NUM - 1; i >= 0 ; i--)
+        remove_from_rank(&PROC_ARRAY, &DSM_NODE_NUM, PROC_ARRAY[i].connect_info.rank);
+
+    fflush(stdout);
+
+    /* terminer correctement le thread de communication */
+    /* pour le moment, on peut faire : */
+    pthread_cancel(comm_daemon);
+
+    return;
 }
 

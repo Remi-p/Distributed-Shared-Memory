@@ -94,8 +94,8 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 	char * port = malloc(sizeof(char) * 5); // La taille maximale d'un port est 5 chiffres
 	sprintf(port, "%i", port_num); // Port du serveur
 	
-	// Chemin vers le programme distant
-	sprintf(exec_dsmwrap, "%s/%s", wd_ptr, argv[2]);
+	// Chemin vers dsmwrap
+	sprintf(exec_dsmwrap, "%s/bin/dsmwrap", wd_ptr);
 	
 	// Chemin vers machine_file
 	sprintf(path_machines, "%s/%s", wd_ptr, argv[1]);
@@ -103,10 +103,9 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 	// ------------- Nombres d'arguments pour le ssh
 	// 7 = Nombre d'arguments entré en "dur"
 	// argc = Nombre d'arguments passés lors de l'exécution de dsmexec
-	// -3 = On enlève [le nom de fichier & le nom du fichier machine] de argv
-	//		& le nom du programme lancé sur les machines distantes
+	// -2 = On enlève [le nom de fichier & le nom du fichier machine] de argv
 	// 1 = Dernier élement, = NULL
-	u_short newargc = 7 + argc - 3 + 1;
+	u_short newargc = 7 + argc - 2 + 1;
 	// ----------------------------------------------------------------
 	
 	for(i = 0; i < num_procs ; i++) {
@@ -160,7 +159,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 			newargv[6] = path_machines; // fichier de la machine
 			
 			// Pour les autres arguments, on complète avec ceux donnés lors de l'appel
-			for (j = 3; j < argc; j++) {
+			for (j = 2; j < argc; j++) {
 				newargv[j + 7 - 2] = malloc(sizeof(char) * strlen(argv[j]));
 				strcpy(newargv[j + 5], argv[j]);
 			}
