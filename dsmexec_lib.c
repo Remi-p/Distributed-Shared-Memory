@@ -42,27 +42,33 @@ void lecture_tube(int fd) {
 	
 	// TODO : Afficher les infos d'un processus en tabulé
 	
-	char *buffer = malloc(sizeof(char) * BUFFER_MAX);
+	char *input;
 	
-	off_t off = 0;
+	// Finalement, on lit juste une ligne ;
+	//~ if (readline(&input, fd) != 0)
+		//~ fprintf(stdout, "%s", input);
 	
-	do {
-		memset(buffer, 0, sizeof(char) * BUFFER_MAX);
-		
-		off = read(fd, buffer, BUFFER_MAX);
-		
-		if (off == -1 && errno != EINTR )
-			error("Erreur de lecture d'un tube ");
-		
-		// Si on a été interrompu par le système, on recommence !
-		if (errno == EINTR)
-			off = 1;
-		else
-			fprintf(stdout, "%s", buffer);
-		
-	} while (off > 0);
+	//~ char *buffer = malloc(sizeof(char) * BUFFER_MAX);
 	
-	free(buffer);
+	//~ off_t off = 0;
+	
+	//~ do {
+		//~ memset(buffer, 0, sizeof(char) * BUFFER_MAX);
+		
+		//~ off = read(fd, buffer, BUFFER_MAX);
+		
+		//~ if (off == -1 && errno != EINTR )
+			//~ error("Erreur de lecture d'un tube ");
+		
+		//~ // Si on a été interrompu par le système, on recommence !
+		//~ if (errno == EINTR)
+			//~ off = 1;
+		//~ else
+			//~ fprintf(stdout, "%s", buffer);
+		
+	//~ } while (off > 0);
+	
+	//~ free(buffer);
 }
 
 void lancement_processus_fils(int num_procs, dsm_proc_t *proc_array,
@@ -229,7 +235,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 		
 			// On récupère le rang de la machine dans le tableau de la
 			// structure, plutôt que son nom
-			do_read(accept_sckt, &rank_machine, sizeof(u_short), NULL);
+			do_read(accept_sckt, &rank_machine, sizeof(u_short));
 			
 			/* On recupere le pid du processus distant  */
 			// do_read(accept_sckt, &wrap_pid, sizeof(pid_t), NULL);
@@ -238,7 +244,7 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
 
 			/* On recupere le numero de port de la socket */
 			/* d'ecoute des processus distants */
-			do_read(accept_sckt, &wrap_port, sizeof(u_short), NULL);
+			do_read(accept_sckt, &wrap_port, sizeof(u_short));
 			
 			fprintf(stdout, "Rang deviné : %i / Port deviné : %i\n", rank_machine, wrap_port);
 			
@@ -318,11 +324,21 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	
 			if ((fds[2*i].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED,
+				fprintf(stdout, "[%s%s > proc %i > stderr%s]", ANSI_COLOR_RED,
 					(*proc_array)[i].connect_info.machine_name,
 					(*proc_array)[i].connect_info.rank, ANSI_RESET);
 				
-				lecture_tube((*proc_array)[i].stderr);
+				char *input;
+				
+				FILE* fp = fdopen((*proc_array)[i].stderr, "w");
+				
+				// Finalement, on lit juste une ligne ;
+				if (readline(&input, fp) != 0)
+					fprintf(stdout, "%s", input);
+				
+				// TODO : Here - Core dump
+				
+				//~ close(fp);
 				
 				fprintf(stdout, "\n");
 				fflush(stdout);
@@ -330,11 +346,21 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 			
 			if ((fds[2*i+1].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s > proc %i > stdout]\n",
+				fprintf(stdout, "[%s > proc %i > stdout]",
 					(*proc_array)[i].connect_info.machine_name,
 					(*proc_array)[i].connect_info.rank);
 				
-				lecture_tube((*proc_array)[i].stdout);
+				char *input;
+				
+				// TODO - HERE / Voir comment faire (hardcoder le readline ?)
+				
+				FILE* fp = fdopen((*proc_array)[i].stdout, "w");
+				
+				// Finalement, on lit juste une ligne ;
+				if (readline(&input, fp) != 0)
+					fprintf(stdout, "%s", input);
+					
+				//~ close(fp);
 				
 				fprintf(stdout, "\n");
 				fflush(stdout);

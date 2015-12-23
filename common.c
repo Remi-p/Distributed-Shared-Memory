@@ -2,6 +2,29 @@
 
 #include <stdarg.h>
 
+
+// Stocke une ligne depuis un desc. de fichier + allocation dynamique
+ssize_t readline(char **input, FILE* fd) {
+	
+	size_t len = NULL;
+	ssize_t gtln = 0;
+	
+	// Pour que getline alloue dynamiquement la mémoire nécessaire, il
+	// faut que input[0] et len soient NULL.
+	if (input[0] != NULL) {
+		free(input[0]);
+		input[0] = NULL;
+	}
+	
+	gtln = getline(input, &len, fd);
+	
+	if (gtln < 0) {
+		error("Voici l'erreur concernant la lecture d'une ligne ");
+	}
+	
+	return gtln;
+}
+
 // Liste les informations de connexion liées à un tableau de struct :
 void display_connect_info(dsm_proc_t *process, int num_process) {
 	

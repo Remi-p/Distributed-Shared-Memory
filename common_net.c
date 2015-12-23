@@ -9,7 +9,7 @@ void connect_and_sr_rank(int socket, struct sockaddr_in addr, u_short *rank, u_s
 	
     handle_message(socket, &self_rank, sizeof(u_short));
 
-	if(do_read(socket, rank, sizeof(u_short), NULL) == false)
+	if(do_read(socket, rank, sizeof(u_short)) == false)
 		error("Socket fermée dans connect_and_sr_rank\n");
 
 }
@@ -23,7 +23,7 @@ int accept_and_rs_rank(int socket, u_short *rank, u_short self_rank) {
 	
 	accept_sckt = do_accept(socket, tmp);
 
-	if (do_read(accept_sckt, rank, sizeof(u_short), NULL) == false)
+	if (do_read(accept_sckt, rank, sizeof(u_short)) == false)
 		error("Socket fermée dans accept_and_rs_rank\n");
 	
     handle_message(accept_sckt, &self_rank, sizeof(u_short));
@@ -193,33 +193,47 @@ int do_accept(int sckt, struct sockaddr* adresse) {
 
 // Read les données envoyées
 // Retourne false si la socket est fermée
-bool do_read(int socket, void *output, int taille, enum code* code_ret) {
-	
-	// Ici on réceptionnera la chaîne de caractère + le code
-	void* msg_received = calloc( taille, 1 );
+bool do_read(int socket, void *output, int taille) {
 	
 	// Le serveur attend l'envoi des données dans cette fonction (avec recv)
 	memset(output,0,taille);
 	
 	ssize_t offset = 0;
 
-	offset = recv(socket, msg_received + offset, taille - offset, 0);
+	while(offset != taille) {
+		offset = recv(socket, output + offset, taille - offset, 0);
 	
-	if (offset < 0)
-		error("Erreur de lecture ");
+		if (offset < 0)
+			error("Erreur de lecture ");
+	}
 		
 	// D'après `man recv` : "If no messages are available to be received
 	// and the peer has performed an orderly shutdown, recv() shall
 	// return 0."
-	else if (offset == 0) {
-		free(msg_received);
+	if (offset == 0)
 		return false;
-	}
 	
-	if (memcpy(output, msg_received, taille) == NULL)
-		error("Erreur de recopie dans le buffer ");
+	return true;
+}
+
+// Pareil que do_read, avec la prise en compte du code de retour
+bool do_read_code(int socket, void *output, int taille, enum code* code_ret) {
+	
+	// Ici on réceptionnera la chaîne de caractère + le code
+	char* msg_received = calloc( sizeof(char), taille+1 );
+	
+	if (do_read(socket, msg_received, taille+1) == false)
+		return false;
+	
+	// On enregistre le code de retour dans code_ret, et on copie la
+	// chaîne reçue dans output	
+	if (code_ret != NULL)
+		*code_ret = (enum code) msg_received[0];
+	
+	memcpy(output, msg_received + 1, taille);
 	
 	free(msg_received);
+	
 	return true;
 }
 
@@ -237,6 +251,19 @@ void handle_message(int socket, const void *input, int taille) {
 		}
 	}
 	while (offset!=taille);
+}
+
+// Pareil que handle_message, avec une gestion d'un code pr les msg
+void message_with_code(int socket, const void *input, int taille, enum code code_ret) {
+	
+	// Ajout du code de retour
+	char str[strlen(input) + 1];
+	taille++;
+	
+	str[0] = (char) code_ret;
+	memcpy(str + 1, input, strlen(input));
+	
+	handle_message(socket, input, taille);
 }
 
 // hostname peut être NULL, on utilise INADDR_ANY dans ce cas

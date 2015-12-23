@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
+#include "common_impl.h"
+#include "common_net.h"
 
 
 /* fin des includes */
@@ -41,9 +43,12 @@ typedef struct
 
 dsm_page_info_t table_page[PAGE_NUMBER];
 
+// Tableau des structures des processus dsmwrap
+dsm_proc_t *PROC_ARRAY;
+
 pthread_t comm_daemon;
 extern int DSM_NODE_ID;
-extern int DSM_NODE_NUM;
+extern int dsm_node_num;
 
 char *dsm_init( int argc, char **argv);
 void  dsm_finalize( void );

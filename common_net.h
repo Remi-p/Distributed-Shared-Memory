@@ -1,3 +1,32 @@
+// -------------- Construction des codes de retour --------------------
+	// (grossièrement inspiré des codes FTP
+	// https://en.wikipedia.org/wiki/List_of_FTP_server_return_codes )
+
+	// On code le tout sur un octet; les deux premiers bits = type de
+	// code de retour, le reste désigne le code lui-même
+	enum reponse_type {
+		REPONSE_OK, // 0
+		REPONSE_NOK
+	};
+
+	enum ok_code_type {
+		ANY_OK,
+		ASK_PAGE,
+		GIVE_PAGE_OWNER
+	};
+
+	enum nok_code_type {
+		ANY_NOK
+	};
+
+	enum code {
+		OK_ANY          = ANY_OK          | (REPONSE_OK << 6),
+		OK_ASK_PAGE     = ASK_PAGE        | (REPONSE_OK << 6),
+		OK_PAGE_OWNER   = GIVE_PAGE_OWNER | (REPONSE_OK << 6),
+		NOK_ANY			= ANY_NOK		  | (REPONSE_NOK << 6)
+	};
+// ---------------------------------------------------------------------
+
 // Renvoi le numéro de la socket, enregistre le port utilisé dans port_num
 int creer_socket(int type, u_short *port_num, char** ip);
 
@@ -18,11 +47,14 @@ void do_listen(int socket, int max);
 int do_accept(int sckt, struct sockaddr* adresse);
 
 // Read les données envoyées (retourne false si la socket est fermée)
-bool do_read(int socket, void *output, int taille, enum code* code_ret);
+bool do_read(int socket, void *output, int taille);
 
 // Envoi d'un message 'input' sur 'socket', de taille 'taille'
 void handle_message(int socket, const void *input, int taille);
 
+// Pareil que handle_message, avec une gestion d'un code pr les msg
+void message_with_code(int socket, const void *input, int taille, enum code code_ret);
+	
 // Récupération de la structure d'adresse correspondant à l'ip 'hostname'
 struct sockaddr_in* get_addr_info(int port, char* hostname);
 

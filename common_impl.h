@@ -22,7 +22,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#define VERBOSE 1
+#define VERBOSE 0
 
 #define BUFFER_MAX 5
 
@@ -56,26 +56,12 @@ struct dsm_proc {
 };
 typedef struct dsm_proc dsm_proc_t;
 
-	typedef char bool;
-	#define true 1
-	#define false 0
+typedef char bool;
+    #define true 1
+    #define false 0
 
-	enum reponse_type {
-		REPONSE_OK, // 0
-		REPONSE_NOK
-	};
-	
-	enum ok_code_type {
-		ANY_OK
-	};
-	
-	enum nok_code_type {
-		ANY_NOK
-	};
-	
-	enum code {
-		OK_ANY 			= ANY_OK 			| (REPONSE_OK << 6)
-	};
+// Stocke une ligne depuis un desc. de fichier + allocation dynamique
+ssize_t readline(char **input, FILE* fd);
 
 // Affichage d'erreur
 void error(const char *msg);
@@ -85,7 +71,7 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
 // Segmentation fault
 void gdb_stop();
-	
+    
 /* Retourne un tableau de struct dsm_proc  de taille du nombre de
  * processus contenant le nom de la machine + le rang */
 dsm_proc_t* machine_names(char * name_file, int process_nb);
