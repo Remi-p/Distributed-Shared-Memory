@@ -83,7 +83,7 @@ int count_process_nb(char * machine_file);
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
-// Affiche un texte souligné
+// Affiche un texte souligné + saute une ligne
 void underlined(char *text, ...);
 
 // Liste les informations de connexion liées à un tableau de struct :

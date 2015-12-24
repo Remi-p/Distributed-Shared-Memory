@@ -11,10 +11,23 @@ bool disp_line(FILE* out, int in) {
 	bool first = true;
 	
 	while ( (ret = read(in, &c, sizeof(char))) != 0 ) {
-		// Face à une erreur autre qu'une interruption de signal
+		
 		if (ret == -1) {
+			
+			// On a mis la socket non-bloquante, sinon read peut se
+			// se bloquer. Voir read(3) :
+			//*	If  some  process  has  the pipe open for writing and
+			//*	O_NONBLOCK is clear, read() shall block the calling
+			//*	thread  until  some  data  is written  or  the  pipe is
+			//* closed by all processes that had the pipe open for
+			//* writing.
+			if (errno == EAGAIN)
+				return false;
+			
+			// Interruption par un signal : on réessaye
 			if (errno != EINTR)
 				break;
+
 		}
 		
 		// Pas d'erreurs du tout :
@@ -24,7 +37,7 @@ bool disp_line(FILE* out, int in) {
 			
 			if (first) {
 				first = false;
-				fprintf(out, "\t");
+				fprintf(out, "\t| ");
 			}
 			
 			fprintf(out, "%c", c);
@@ -71,7 +84,7 @@ int check_machine_name(char * name) {
 	return true;
 }
 
-// Affiche un texte souligné
+// Affiche un texte souligné + saute une ligne
 void underlined(char *text, ...) {
 	
 	fprintf(stdout, "%s", ANSI_STYLE_UNDERLINED);
@@ -81,7 +94,21 @@ void underlined(char *text, ...) {
 	vfprintf( stdout, text, arglist );
 	va_end( arglist );
    
-	fprintf(stdout, "%s", ANSI_RESET);
+	fprintf(stdout, "%s\n", ANSI_RESET);
+}
+
+// Retourne la position de la structure contenant le descripteur de fichier
+int get_pos_from_fd(dsm_proc_t* process, int nb_process, int fd) {
+	
+	int i;
+	
+	for (i = 0; i < nb_process; i++) {
+		if(process[i].stdout == fd || process[i].stderr == fd)
+			return i;
+	}
+	
+	error("Aucun descripteur de fichier trouvé ");
+	return -1;
 }
 
 // Enlève un élément du tableau de processus

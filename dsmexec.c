@@ -20,7 +20,7 @@ volatile int num_procs_creat = 0;
 
 int main(int argc, char *argv[]) {
     
-    underlined("\nLancement de dsmexec.c\n\n");
+    underlined("\nLancement de dsmexec.c\n");
     
     if (argc < 3){
         usage();

@@ -5,12 +5,12 @@ int main(int argc, char **argv) {
 	char *current;
 	int value;
 
-	underlined("Lancement de exemple.c\n");
+	underlined("Lancement de exemple.c");
     fflush(stdout);
 
 	pointer = dsm_init(argc,argv);
 	current = pointer;
-
+    
 	fprintf(stdout, "[%i] Coucou, mon adresse de base est : %p\n", DSM_NODE_ID, pointer);
 
 	if (DSM_NODE_ID == 0) {
