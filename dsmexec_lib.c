@@ -37,40 +37,6 @@ void sigchld_handler(int sig) {
 	} while(ret > 0);
 }
 
-// Lecture dans un tube, tant qu'il y a des données
-void lecture_tube(int fd) {
-	
-	// TODO : Afficher les infos d'un processus en tabulé
-	
-	char *input;
-	
-	// Finalement, on lit juste une ligne ;
-	//~ if (readline(&input, fd) != 0)
-		//~ fprintf(stdout, "%s", input);
-	
-	//~ char *buffer = malloc(sizeof(char) * BUFFER_MAX);
-	
-	//~ off_t off = 0;
-	
-	//~ do {
-		//~ memset(buffer, 0, sizeof(char) * BUFFER_MAX);
-		
-		//~ off = read(fd, buffer, BUFFER_MAX);
-		
-		//~ if (off == -1 && errno != EINTR )
-			//~ error("Erreur de lecture d'un tube ");
-		
-		//~ // Si on a été interrompu par le système, on recommence !
-		//~ if (errno == EINTR)
-			//~ off = 1;
-		//~ else
-			//~ fprintf(stdout, "%s", buffer);
-		
-	//~ } while (off > 0);
-	
-	//~ free(buffer);
-}
-
 void lancement_processus_fils(int num_procs, dsm_proc_t *proc_array,
 char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_creat) {
 	
@@ -125,17 +91,16 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 		if (pipe(fd_stderr) == -1)
 			error("Erreur de création du tube de redirection sterr ");
 
+		if (VERBOSE) printf("Création du fils n°%i\n", i);
 		pid = fork();
 		
 		if(pid == -1) ERROR_EXIT("fork");
 
 		if (pid == 0) { /* fils */	
-
+			
 			//~ // Inutile pour le fils :
 			close(fd_to_close[0]);
 			close(fd_to_close[1]);
-
-			if (VERBOSE) printf("Création du fils n°%i\n", i);
 
 			/* redirection stdout */
 			close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
@@ -277,9 +242,6 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	
 	// Necessaire pour l'argument du poll
 	int nb_tubes = 0;
-	// Buffer de réception sur les tubes
-	char buffer[BUFFER_MAX];
-	memset(buffer, 0, BUFFER_MAX * sizeof(char));
 	
 	// On va enregistrer une fois pour toutes les descripteurs ici -----
 	struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (*num_procs * 2));
@@ -302,10 +264,6 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 		nb_tubes += 2;
 	}
 	// -----------------------------------------------------------------
-	
-	//~ // Ici on stockera tous les descripteurs de fichier pour les tubes
-	//~ struct pollfd *fds = calloc(sizeof(struct pollfd), sizeof(struct pollfd) * (*num_procs * 2));
-	//~ // On utilise un malloc pour pouvoir utiliser le realloc
 
 	while(*num_procs > 0) {
 		
@@ -324,46 +282,20 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
 	
 			if ((fds[2*i].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s%s > proc %i > stderr%s]", ANSI_COLOR_RED,
+				fprintf(stdout, "[%s > proc %i > stdout]\n",
 					(*proc_array)[i].connect_info.machine_name,
-					(*proc_array)[i].connect_info.rank, ANSI_RESET);
-				
-				char *input;
-				
-				FILE* fp = fdopen((*proc_array)[i].stderr, "w");
-				
-				// Finalement, on lit juste une ligne ;
-				if (readline(&input, fp) != 0)
-					fprintf(stdout, "%s", input);
-				
-				// TODO : Here - Core dump
-				
-				//~ close(fp);
-				
-				fprintf(stdout, "\n");
-				fflush(stdout);
+					(*proc_array)[i].connect_info.rank);
+					
+				while (disp_line(stdout, (*proc_array)[i].stdout) != false);
 			}
 			
 			if ((fds[2*i+1].events & POLLIN) == POLLIN) {
 				
-				fprintf(stdout, "[%s > proc %i > stdout]",
+				fprintf(stdout, "[%s%s > proc %i > stderr%s]\n", ANSI_COLOR_RED,
 					(*proc_array)[i].connect_info.machine_name,
-					(*proc_array)[i].connect_info.rank);
+					(*proc_array)[i].connect_info.rank, ANSI_RESET);
 				
-				char *input;
-				
-				// TODO - HERE / Voir comment faire (hardcoder le readline ?)
-				
-				FILE* fp = fdopen((*proc_array)[i].stdout, "w");
-				
-				// Finalement, on lit juste une ligne ;
-				if (readline(&input, fp) != 0)
-					fprintf(stdout, "%s", input);
-					
-				//~ close(fp);
-				
-				fprintf(stdout, "\n");
-				fflush(stdout);
+				while (disp_line(stdout, (*proc_array)[i].stderr) != false);
 			}
 			
 			// On ne ferme le tube qu'après avoir affiché les

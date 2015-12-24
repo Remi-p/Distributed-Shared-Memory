@@ -2,27 +2,47 @@
 
 #include <stdarg.h>
 
-
-// Stocke une ligne depuis un desc. de fichier + allocation dynamique
-ssize_t readline(char **input, FILE* fd) {
+// Affiche une ligne jusqu'à l'EOF ou une nouvelle ligne
+bool disp_line(FILE* out, int in) {
 	
-	size_t len = NULL;
-	ssize_t gtln = 0;
+	// TOASK : Optimisé (par fprintf) ou à optimiser à la main ?
+	char c;
+	int ret;
+	bool first = true;
 	
-	// Pour que getline alloue dynamiquement la mémoire nécessaire, il
-	// faut que input[0] et len soient NULL.
-	if (input[0] != NULL) {
-		free(input[0]);
-		input[0] = NULL;
+	while ( (ret = read(in, &c, sizeof(char))) != 0 ) {
+		// Face à une erreur autre qu'une interruption de signal
+		if (ret == -1) {
+			if (errno != EINTR)
+				break;
+		}
+		
+		// Pas d'erreurs du tout :
+		else {
+			if (c == '\0' || c == '\n')
+				break;
+			
+			if (first) {
+				first = false;
+				fprintf(out, "\t");
+			}
+			
+			fprintf(out, "%c", c);
+		}
+			
 	}
 	
-	gtln = getline(input, &len, fd);
+	if (ret < 0)
+		error("Erreur de lecture de tube (disp_line) ");
 	
-	if (gtln < 0) {
-		error("Voici l'erreur concernant la lecture d'une ligne ");
-	}
+	else if (ret == 0)
+		return false;
 	
-	return gtln;
+	fprintf(out, "\n");
+	fflush(out);
+	
+	return true;
+	
 }
 
 // Liste les informations de connexion liées à un tableau de struct :

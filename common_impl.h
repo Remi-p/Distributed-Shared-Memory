@@ -60,8 +60,9 @@ typedef char bool;
     #define true 1
     #define false 0
 
-// Stocke une ligne depuis un desc. de fichier + allocation dynamique
-ssize_t readline(char **input, FILE* fd);
+// Affiche une ligne jusqu'à l'EOF ou une nouvelle ligne
+// Puis ajoute une ligne & flush out
+bool disp_line(FILE* out, int in);
 
 // Affichage d'erreur
 void error(const char *msg);
