@@ -111,6 +111,43 @@ int get_pos_from_fd(dsm_proc_t* process, int nb_process, int fd) {
 	return -1;
 }
 
+// Fonction généraliste pour déplacer un tableau en prenant la place
+// d'une des cellules
+void remove_any(void *array, int length, int size, int pos) {
+	
+	// Si ce ne sont pas les derniers éléments, on déplace la mémoire
+	if (pos != length)
+		memmove(array + size * pos,
+				array + size * (pos+1),
+				(length - 1) * size );
+}
+
+// Enlève un élément du tableau de processus en fonction de sa position
+void remove_from_pos(dsm_proc_t** process, int* nb_process, int i) {
+	
+	int proc_qty = *nb_process;
+	
+	// Fermeture des descripteurs de fichier
+	close((*process)[i].stderr);
+	close((*process)[i].stdout);
+	
+	// Fermeture de la socket
+	if ((*process)[i].connect_info.socket != 0)
+		close((*process)[i].connect_info.socket);
+	
+	// Si ce n'est pas le dernier élément, on déplace la mémoire
+	if (i != proc_qty -1)
+		memmove((*process) + i,
+				(*process) + i + 1,
+				(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
+	
+	// Réallocation de la mémoire avec la taille nécessaire
+	*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
+	
+	(*nb_process)--;
+	return;
+}
+
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 	
@@ -120,30 +157,8 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
 	for (i = 0; i < proc_qty; i++) {
 		
 		// La cellule à supprimer à été localisée
-		if((*process)[i].connect_info.rank == rank) {
-	
-			// Fermeture des descripteurs de fichier
-			close((*process)[i].stderr);
-			close((*process)[i].stdout);
-			
-			// Fermeture de la socket
-			if ((*process)[i].connect_info.socket != 0)
-				close((*process)[i].connect_info.socket);
-			
-			// Si ce n'est pas le dernier élément, on déplace la mémoire
-			if (i != proc_qty -1)
-				memmove((*process) + i,
-						(*process) + i + 1,
-						(sizeof(struct dsm_proc) * ( proc_qty - 1 - i)) );
-			
-			// Réallocation de la mémoire avec la taille nécessaire
-			*process = realloc(*process, (proc_qty - 1) * sizeof(struct dsm_proc));
-			
-			if (VERBOSE) fprintf(stdout, "Délétion du processus de rang %i\n", rank);
-			
-			(*nb_process)--;
-			return;
-		}
+		if((*process)[i].connect_info.rank == rank)
+			return remove_from_pos(process, nb_process, i);
 		
 	}
 	
@@ -221,7 +236,7 @@ void error(const char *msg) {
 }
 
 // Enregistre le port au processus de rang rank
-int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port)
+bool fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port)
 {
 	int i;
 	for(i=0; i < num_procs; i++) {
@@ -230,5 +245,18 @@ int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short
 			return true;
 		}
 	}
+	return false;
+}
+
+// Enregistre le numéro de socket au processus de rang rank
+bool fill_proc_sckt(dsm_proc_t *proc_array, int num_procs, u_short rank, int sckt) {
+	int i;
+	
+	for(i=0; i < num_procs; i++)
+		if(proc_array[i].connect_info.rank == rank) {
+			proc_array[i].connect_info.socket = sckt;
+			return true;
+		}
+		
 	return false;
 }

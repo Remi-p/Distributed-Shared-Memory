@@ -67,6 +67,9 @@ bool disp_line(FILE* out, int in);
 // Affichage d'erreur
 void error(const char *msg);
 
+// Enlève un élément du tableau de processus en fonction de sa position
+void remove_from_pos(dsm_proc_t** process, int* nb_process, int i);
+
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
@@ -79,6 +82,10 @@ dsm_proc_t* machine_names(char * name_file, int process_nb);
 
 /* compte le nombre de processus à lancer */
 int count_process_nb(char * machine_file);
+
+// Fonction généraliste pour déplacer un tableau en prenant la place
+// d'une des cellules
+void remove_any(void *array, int length, int size, int pos);
 
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
@@ -93,4 +100,7 @@ void display_connect_info(dsm_proc_t *process, int num_process);
 int count_process_nb(char * machine_file);
 
 // Enregistre le port au processus de rang rank
-int fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port);
+bool fill_proc_array(dsm_proc_t *proc_array, int num_procs, u_short rank, u_short port);
+
+// Enregistre le numéro de socket au processus de rang rank
+bool fill_proc_sckt(dsm_proc_t *proc_array, int num_procs, u_short rank, int sckt);

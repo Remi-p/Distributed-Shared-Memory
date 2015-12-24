@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
         fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
 	} 
 	else if (DSM_NODE_ID == 1) {
-        current += PAGE_SIZE;
+        current += 2*PAGE_SIZE;
         current += 16*sizeof(int);
 
         value = *((int *)current);

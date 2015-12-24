@@ -320,12 +320,8 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
                 
                 // Suppression des descripteurs fermés de 'fds'
                 
-                // Si ce ne sont pas les derniers éléments, on déplace
-                // la mémoire
-                if (2*i+1 != nb_tubes)
-                    memmove(fds + 2 * i,
-                            fds + 2 * (i+1),
-                            sizeof(struct pollfd) * (nb_tubes - 2 * (i+1)) );
+                // Suppressions des deux descripteurs d'un coup
+                remove_any(fds, nb_tubes/2, 2 * sizeof(struct pollfd), i);
                 
                 // Decrémentation du nombre de tubes
                 nb_tubes -= 2;

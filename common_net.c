@@ -108,7 +108,8 @@ int do_socket(int domain, int type, int protocol) {
     int yes = 1;
 
     // Creation de la socket client
-	sockfd = socket(domain, type, protocol);
+	if ( (sockfd = socket(domain, type, protocol)) == -1 )
+		error("Erreur lors de la création de la socket ");
 
 	// Set socket options
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, 
@@ -145,6 +146,7 @@ int do_connect(int socket, struct sockaddr_in serv_add) {
 	int conn = connect(socket, (struct sockaddr *) &serv_add, sizeof(struct sockaddr));
 	
 	if (conn == -1) {
+		fprintf(stderr, "Erreur de connexion à %s:%i\n", inet_ntoa(serv_add.sin_addr), serv_add.sin_port);
 		error("Voici l'erreur concernant la connexion ");
 	}
 	

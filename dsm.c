@@ -75,37 +75,49 @@ static void dsm_free_page( int numpage )
    return;
 }
 
-static void *dsm_comm_daemon( void *arg) {  
+static void *dsm_comm_daemon( void *arg) {
+    
+    fprintf(stdout, "Nbr deviné : %i\n", *((int *)arg) );
+    fprintf(stdout, "Rmq : dsm_id = %i\n", DSM_NODE_ID);
     
 	// Ici on stockera toutes les sockets des autres processus
-	fd_set socks;
-    int plus_grde_sckt;
-    int retour_select;
+    int retour_poll;
     int i;
     int sckt_tmp;
     
+    // --------------- Initialisation pour le poll ---------------------
+    
+    // Necessaire pour l'argument du poll
+    int nb_fds = 0;
+    
+    // Tableau des descripteurs
+    struct pollfd fds[dsm_node_num];
+		memset(fds, 0, sizeof(struct pollfd) * dsm_node_num);
+
+	for (i = 0; i < dsm_node_num; i++) {
+		sckt_tmp = PROC_ARRAY[i].connect_info.socket;
+		
+		fprintf(stdout, "Ajout de la sckt %i\n", sckt_tmp);
+		fds[i].fd = sckt_tmp;
+		fds[i].events = POLLIN | POLLHUP;
+		
+		nb_fds++;
+	}
+    
+    fprintf(stdout, "Nombre de processus BEFORE POLL : %i\n", dsm_node_num);
+    
     while(dsm_node_num > 0) {
-        FD_ZERO(&socks);
 		
-        for (i = 0; i < dsm_node_num; i++) {
-            sckt_tmp = PROC_ARRAY[i].connect_info.socket;
-            FD_SET(sckt_tmp, &socks);
-            
-            if (plus_grde_sckt < sckt_tmp)
-                plus_grde_sckt = sckt_tmp;
-            // Il faut changer dynamiquement plus_grde_sckt puisque des
-            // descripteurs peuvent être fermés
-        }
-		
-        fprintf(stdout, "BEFORE SELECT\n");
-        retour_select = select( plus_grde_sckt + 1,
-								&socks, NULL, NULL, NULL);
-        fprintf(stdout, "AFTER SELECT : %i\n", retour_select);
+        fprintf(stdout, "BEFORE POLL\n");
+        
+        while ( (retour_poll = poll( fds, nb_fds, 0)) == -1 )
+            if ( errno != EINTR )
+                error("Erreur lors du select ");
+                
+        fprintf(stdout, "AFTER POLL : %i\n", retour_poll);
         
         // Rmq : il se peut que le daemon soit arrêté avant de sortir du
-        //       select.
-		if (retour_select < 0)
-			error("Erreur lors du select");
+        //       poll.
             
         // Si on arrive là, c'est qu'une connexion a été fermée ou qu'un
         // processus veut accéder à notre page/mettre à jour le proprio.
@@ -113,10 +125,22 @@ static void *dsm_comm_daemon( void *arg) {
         for (i = 0; i < dsm_node_num; i++) {
             sckt_tmp = PROC_ARRAY[i].connect_info.socket;
             
-            if (FD_ISSET(sckt_tmp, &socks)) {
-                fprintf(stdout, "Du mvt sur %i !\n", sckt_tmp);
+            // Des informations à lire
+            if (fds[i].revents & POLLIN) {
+                fprintf(stdout, "Du mvt sur %i !\n", i);
                 fflush(stdout);
-            }
+			}
+			
+            // Socket fermée
+            if (fds[i].revents & POLLHUP) {
+                remove_from_pos(&PROC_ARRAY, &dsm_node_num, i);
+                
+                fprintf(stdout, "Suppression %i!\n", i);
+                
+                // Suppression + décrémentation
+                remove_any(fds, nb_fds, sizeof(struct pollfd), i);
+                nb_fds -= 1;
+			}
         }
     }
     
@@ -252,6 +276,8 @@ void connexion_process(int sckt) {
     int i;
     // Structure de stockage temporaire pour les accept
     char ip_temporaire[INET_ADDRSTRLEN];
+    // Numéro de descripteur de fichier temporaire
+    int sckt_tmp = 0;
     // Variable temporaire de récupération du rang
     u_short rank;
     // Nbr de process de rang inf.
@@ -271,10 +297,11 @@ void connexion_process(int sckt) {
         // Pour les rangs inférieurs, ce sont eux qui font la connexion
         if (PROC_ARRAY[i].connect_info.rank < DSM_NODE_ID) {
             
-            PROC_ARRAY[i].connect_info.socket
-                = accept_and_rs_rank(sckt, &rank, DSM_NODE_ID);
+            sckt_tmp = accept_and_rs_rank(sckt, &rank, DSM_NODE_ID);
+
+            fill_proc_sckt(PROC_ARRAY, dsm_node_num, rank, sckt_tmp);
             
-            fprintf(stdout, "Acceptation du process %i\n", rank);
+            if (VERBOSE) fprintf(stdout, "Acceptation du process %i\n", rank);
             
         }
         
@@ -283,15 +310,17 @@ void connexion_process(int sckt) {
         else {
             hostname_to_ip(PROC_ARRAY[i].connect_info.machine_name, ip_temporaire);
             
-            PROC_ARRAY[i].connect_info.socket = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            sckt_tmp = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
             
             connect_and_sr_rank(
-                PROC_ARRAY[i].connect_info.socket, // Socket
+                sckt_tmp, // Socket
                 *(get_addr_info(PROC_ARRAY[i].connect_info.port, ip_temporaire)), // Adresse
                 &rank, // Rang récupéré
                 DSM_NODE_ID);
             
-            fprintf(stdout, "Connexion au process %i\n", rank );
+            fill_proc_sckt(PROC_ARRAY, dsm_node_num, rank, sckt_tmp);
+            
+            if (VERBOSE) fprintf(stdout, "Connexion au process %i\n", rank);
             
         }
     }
@@ -376,22 +405,8 @@ char *dsm_init(int argc, char **argv) {
     
     connexion_process(wrap_socket_ecoute);
     
-    for (i = 0; i <= argc; i++)
-       if (VERBOSE) fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
-    
-   
-   /* reception du nombre de processus dsm envoye */
-   /* par le lanceur de programmes (dsm_node_num)*/
-   
-   /* reception de mon numero de processus dsm envoye */
-   /* par le lanceur de programmes (DSM_NODE_ID)*/
-   
-   /* reception des informations de connexion des autres */
-   /* processus envoyees par le lanceur : */
-   /* nom de machine, numero de port, etc. */
-   
-   /* initialisation des connexions */ 
-   /* avec les autres processus : connect/accept */
+    if (VERBOSE) for (i = 0; i <= argc; i++)
+       fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
    
    // Notre dsm_node_num correspond au nombre de processus à l'exception
    // de l'actuel
@@ -411,7 +426,8 @@ char *dsm_init(int argc, char **argv) {
    /* creation du thread de communication */
    /* ce thread va attendre et traiter les requetes */
    /* des autres processus */
-   pthread_create(&comm_daemon, NULL, dsm_comm_daemon, NULL);
+   fprintf(stdout, "dsm_node_num JUSTE AVANT pthread : %i\n", dsm_node_num);
+   pthread_create(&comm_daemon, NULL, dsm_comm_daemon, (void *) &dsm_node_num);
    
    /* Adresse de début de la zone de mémoire partagée */
    return ((char *)BASE_ADDR);

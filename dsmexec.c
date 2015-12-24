@@ -89,6 +89,7 @@ int main(int argc, char *argv[]) {
                      Affichage des données reçues sur les tubes
         \* ========================================================== */
         if (VERBOSE) bold("\n= Lecture des tubes\n");
+        fprintf(stdout, "\n");
         
         affichage_tubes(&num_procs, &proc_array);
         
