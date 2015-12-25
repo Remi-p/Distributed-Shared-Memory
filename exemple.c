@@ -1,6 +1,7 @@
 #include "dsm.h"
 
 int main(int argc, char **argv) {
+	
 	char *pointer; 
 	char *current;
 	int value;
@@ -25,6 +26,7 @@ int main(int argc, char **argv) {
         value = *((int *)current);
         fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
 	}
+	
 	dsm_finalize();
 	return 1;
 }

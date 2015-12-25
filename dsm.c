@@ -77,9 +77,6 @@ static void dsm_free_page( int numpage )
 
 static void *dsm_comm_daemon( void *arg) {
     
-    fprintf(stdout, "Nbr deviné : %i\n", *((int *)arg) );
-    fprintf(stdout, "Rmq : dsm_id = %i\n", DSM_NODE_ID);
-    
 	// Ici on stockera toutes les sockets des autres processus
     int retour_poll;
     int i;
@@ -93,28 +90,24 @@ static void *dsm_comm_daemon( void *arg) {
     // Tableau des descripteurs
     struct pollfd fds[dsm_node_num];
 		memset(fds, 0, sizeof(struct pollfd) * dsm_node_num);
-
+	
 	for (i = 0; i < dsm_node_num; i++) {
-		sckt_tmp = PROC_ARRAY[i].connect_info.socket;
+		sckt_tmp = proc_array[i].connect_info.socket;
 		
 		fprintf(stdout, "Ajout de la sckt %i\n", sckt_tmp);
 		fds[i].fd = sckt_tmp;
 		fds[i].events = POLLIN | POLLHUP;
 		
+		check_sock_err(sckt_tmp);
+		
 		nb_fds++;
 	}
     
-    fprintf(stdout, "Nombre de processus BEFORE POLL : %i\n", dsm_node_num);
-    
     while(dsm_node_num > 0) {
 		
-        fprintf(stdout, "BEFORE POLL\n");
-        
         while ( (retour_poll = poll( fds, nb_fds, 0)) == -1 )
             if ( errno != EINTR )
                 error("Erreur lors du select ");
-                
-        fprintf(stdout, "AFTER POLL : %i\n", retour_poll);
         
         // Rmq : il se peut que le daemon soit arrêté avant de sortir du
         //       poll.
@@ -123,7 +116,9 @@ static void *dsm_comm_daemon( void *arg) {
         // processus veut accéder à notre page/mettre à jour le proprio.
         
         for (i = 0; i < dsm_node_num; i++) {
-            sckt_tmp = PROC_ARRAY[i].connect_info.socket;
+            sckt_tmp = proc_array[i].connect_info.socket;
+            
+            disp_poll(fds[i].revents, i);
             
             // Des informations à lire
             if (fds[i].revents & POLLIN) {
@@ -133,7 +128,7 @@ static void *dsm_comm_daemon( void *arg) {
 			
             // Socket fermée
             if (fds[i].revents & POLLHUP) {
-                remove_from_pos(&PROC_ARRAY, &dsm_node_num, i);
+                remove_from_pos(&proc_array, &dsm_node_num, i);
                 
                 fprintf(stdout, "Suppression %i!\n", i);
                 
@@ -141,15 +136,19 @@ static void *dsm_comm_daemon( void *arg) {
                 remove_any(fds, nb_fds, sizeof(struct pollfd), i);
                 nb_fds -= 1;
 			}
+			
+            if (fds[i].revents & POLLERR) {
+				fprintf(stdout, "ERREUR SUR %i\n!", i);
+			}
         }
     }
     
-   while(1)
-     {
-    /* a modifier */
-    printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
-    sleep(2);
-     }
+	//~ while(1)
+	//~ {
+	//~ /* a modifier */
+	//~ printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
+	//~ sleep(2);
+	//~ }
    return;
 }
 
@@ -248,7 +247,7 @@ void recup_info_proc(int sckt) {
         
         if (VERBOSE) fprintf(stdout, "(%i) %i process. Rang %i : %i\n", j, proc_nb, proc_rank, proc_port);
         
-        fill_proc_array(PROC_ARRAY, dsm_node_num, proc_rank, proc_port);
+        fill_proc_array(proc_array, dsm_node_num, proc_rank, proc_port);
     }
     
     // ----------------------- Suppression des processus non alloués ---
@@ -260,14 +259,14 @@ void recup_info_proc(int sckt) {
     
     // Recherche des structures à supprimer ( => qui n'ont pas de ports)
     for (j = 0; j < dsm_node_num; j++)
-        if (PROC_ARRAY[j].connect_info.port == 0) {
-            rank_to_delete[i] = PROC_ARRAY[j].connect_info.rank;
+        if (proc_array[j].connect_info.port == 0) {
+            rank_to_delete[i] = proc_array[j].connect_info.rank;
             i++;
         }
     
     // Suppression effective
     for (j = 0; j < dsm_node_num && rank_to_delete[j] != -1; j++)
-        remove_from_rank(&PROC_ARRAY, &dsm_node_num, rank_to_delete[j]);
+        remove_from_rank(&proc_array, &dsm_node_num, rank_to_delete[j]);
 }
 
 // Explosions de connexions
@@ -277,14 +276,14 @@ void connexion_process(int sckt) {
     // Structure de stockage temporaire pour les accept
     char ip_temporaire[INET_ADDRSTRLEN];
     // Numéro de descripteur de fichier temporaire
-    int sckt_tmp = 0;
+    int sckt_tmp = 666;
     // Variable temporaire de récupération du rang
     u_short rank;
     // Nbr de process de rang inf.
     u_short nb_process_inf = 0;
     
     // Nombre de processus de rang inférieur
-    for (i = 0; i < dsm_node_num && PROC_ARRAY[i].connect_info.rank < DSM_NODE_ID; i++)
+    for (i = 0; i < dsm_node_num && proc_array[i].connect_info.rank < DSM_NODE_ID; i++)
         nb_process_inf++;
     
     do_listen(sckt, nb_process_inf);
@@ -295,11 +294,11 @@ void connexion_process(int sckt) {
     for (i = 0; i < dsm_node_num; i++) {
         
         // Pour les rangs inférieurs, ce sont eux qui font la connexion
-        if (PROC_ARRAY[i].connect_info.rank < DSM_NODE_ID) {
-            
+        if (proc_array[i].connect_info.rank < DSM_NODE_ID) {
+    
             sckt_tmp = accept_and_rs_rank(sckt, &rank, DSM_NODE_ID);
 
-            fill_proc_sckt(PROC_ARRAY, dsm_node_num, rank, sckt_tmp);
+            fill_proc_sckt(proc_array, dsm_node_num, rank, sckt_tmp);
             
             if (VERBOSE) fprintf(stdout, "Acceptation du process %i\n", rank);
             
@@ -308,17 +307,17 @@ void connexion_process(int sckt) {
         // Pour les rangs supérieurs, c'est ce fichier qui établi la
         // connexion
         else {
-            hostname_to_ip(PROC_ARRAY[i].connect_info.machine_name, ip_temporaire);
+            hostname_to_ip(proc_array[i].connect_info.machine_name, ip_temporaire);
             
             sckt_tmp = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
             
             connect_and_sr_rank(
                 sckt_tmp, // Socket
-                *(get_addr_info(PROC_ARRAY[i].connect_info.port, ip_temporaire)), // Adresse
+                *(get_addr_info(proc_array[i].connect_info.port, ip_temporaire)), // Adresse
                 &rank, // Rang récupéré
                 DSM_NODE_ID);
             
-            fill_proc_sckt(PROC_ARRAY, dsm_node_num, rank, sckt_tmp);
+            fill_proc_sckt(proc_array, dsm_node_num, rank, sckt_tmp);
             
             if (VERBOSE) fprintf(stdout, "Connexion au process %i\n", rank);
             
@@ -388,7 +387,7 @@ char *dsm_init(int argc, char **argv) {
 
     /* =============== Lecture du fichier de machines =============== */
     dsm_node_num = count_process_nb(argv[4]);
-    PROC_ARRAY = machine_names(argv[4], dsm_node_num);
+    proc_array = machine_names(argv[4], dsm_node_num);
     
     /* ============================================================== *\
           Récupération des infos de connexion aux autres processus
@@ -397,7 +396,7 @@ char *dsm_init(int argc, char **argv) {
     recup_info_proc(wrap_socket);
 
     // + Suppression de notre propre structure
-    remove_from_rank(&PROC_ARRAY, &dsm_node_num, DSM_NODE_ID);
+    remove_from_rank(&proc_array, &dsm_node_num, DSM_NODE_ID);
     
     /* ============================================================== *\
                         Connexion aux autres processus
@@ -426,7 +425,6 @@ char *dsm_init(int argc, char **argv) {
    /* creation du thread de communication */
    /* ce thread va attendre et traiter les requetes */
    /* des autres processus */
-   fprintf(stdout, "dsm_node_num JUSTE AVANT pthread : %i\n", dsm_node_num);
    pthread_create(&comm_daemon, NULL, dsm_comm_daemon, (void *) &dsm_node_num);
    
    /* Adresse de début de la zone de mémoire partagée */
@@ -439,15 +437,17 @@ void dsm_finalize( void ) {
     
     /* fermer proprement les connexions avec les autres processus */
 
-    // Fermeture des sockets + libération des structures
-    for (i = dsm_node_num - 1; i >= 0 ; i--)
-        remove_from_rank(&PROC_ARRAY, &dsm_node_num, PROC_ARRAY[i].connect_info.rank);
-
-    fflush(stdout);
-
     /* terminer correctement le thread de communication */
     /* pour le moment, on peut faire : */
     pthread_cancel(comm_daemon);
+    // Placé avant la suppression des sockets (sinon remove_.. accède à 
+    // dsm_node_num en même temps que le deamon)
+    
+    // Fermeture des sockets + libération des structures
+    for (i = dsm_node_num - 1; i >= 0 ; i--)
+        remove_from_rank(&proc_array, &dsm_node_num, proc_array[i].connect_info.rank);
+
+    fflush(stdout);
 
     return;
 }

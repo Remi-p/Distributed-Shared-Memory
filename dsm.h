@@ -44,7 +44,7 @@ typedef struct
 dsm_page_info_t table_page[PAGE_NUMBER];
 
 // Tableau des structures des processus dsmwrap
-dsm_proc_t *PROC_ARRAY;
+dsm_proc_t *proc_array;
 
 pthread_t comm_daemon;
 extern int DSM_NODE_ID;

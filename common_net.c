@@ -312,3 +312,49 @@ int hostname_to_ip(char * hostname , char* ip)
      
     return 1;
 }
+
+// Liste les évènements poll survenus
+void disp_poll(short revents, int pos) {
+	
+	if (revents & POLLIN)
+		fprintf(stdout, "(%i)POLLIN\n", pos);
+	if (revents & POLLRDNORM)
+		fprintf(stdout, "(%i)POLLRDNORM\n", pos);
+	if (revents & POLLRDBAND)
+		fprintf(stdout, "(%i)POLLRDBAND\n", pos);
+	if (revents & POLLPRI)
+		fprintf(stdout, "(%i)POLLPRI\n", pos);
+	if (revents & POLLOUT)
+		fprintf(stdout, "(%i)POLLOUT\n", pos);
+	if (revents & POLLWRNORM)
+		fprintf(stdout, "(%i)POLLWRNORM\n", pos);
+	if (revents & POLLWRBAND)
+		fprintf(stdout, "(%i)POLLWRBAND\n", pos);
+	if (revents & POLLERR)
+		fprintf(stdout, "(%i)POLLERR\n", pos);
+	if (revents & POLLHUP)
+		fprintf(stdout, "(%i)POLLHUP\n", pos);
+	if (revents & POLLNVAL)
+		fprintf(stdout, "(%i)POLLNVAL\n", pos);
+		
+}
+
+// Vérifie s'il y a des erreurs sur la socket
+// http://stackoverflow.com/questions/4142012/how-to-find-the-socket-connection-state-in-c
+void check_sock_err(int socket) {
+	
+	int error = 0;
+	socklen_t len = sizeof (error);
+	int retval = getsockopt (socket, SOL_SOCKET, SO_ERROR, &error, &len);
+
+	if (retval != 0) {
+		/* there was a problem getting the error code */
+		fprintf(stderr, "error getting socket (%i) error code: %s\n", socket, strerror(retval));
+		return;
+	}
+
+	if (error != 0) {
+		/* socket has a non zero error status */
+		fprintf(stderr, "socket (%i) error: %s\n", socket, strerror(error));
+	}
+}
