@@ -123,7 +123,7 @@ static void *dsm_comm_daemon( void *arg) {
         }
         
         // Si on arrive là, c'est qu'une connexion a été fermée ou qu'un
-        // processus veut accéder à notre page/mettre à jour le proprio.
+        // processus nous a envoyé des informations.
         
         for (i = 0; i < dsm_node_num; i++) {
             

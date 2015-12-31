@@ -36,6 +36,9 @@ int creer_socket(int type, u_short *port_num, char** ip);
 // Création d'une socket
 int do_socket(int domain, int type, int protocol);
 
+// Demande jusqu'à n fois la connexion
+int do_connect_n(int socket, struct sockaddr_in serv_add, int n);
+
 // Demande de connexion à l'adresse passée en paramètre
 int do_connect(int socket, struct sockaddr_in serv_add);
 

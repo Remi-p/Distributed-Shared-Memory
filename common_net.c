@@ -5,7 +5,7 @@
 // Connect & send / receive rank
 void connect_and_sr_rank(int socket, struct sockaddr_in addr, u_short *rank, u_short self_rank) {
 
-    do_connect(socket, addr);
+    do_connect_n(socket, addr, N_CONNECT);
     
     handle_message(socket, &self_rank, sizeof(u_short));
 
@@ -137,6 +137,38 @@ void do_bind(int socket, struct sockaddr_in* serv_add) {
         }
         
     } while (bindtmp < 0);
+    
+}
+
+// Demande jusqu'à n fois la connexion
+// (pratique en attendant que tous les processus aient toutes les
+// infos permettant d'effectuer les connexions)
+int do_connect_n(int socket, struct sockaddr_in serv_add, int n) {
+    
+    int conn = -1;
+    int i = n;
+    
+    while (i > 0 && conn == -1) {
+        conn = connect(socket, (struct sockaddr *) &serv_add, sizeof(struct sockaddr));
+    
+        // man connect : ECONNREFUSED
+        //              The  target address was not listening for
+        //              connections or refused the connection request.
+    
+        if (conn == -1 && errno != ECONNREFUSED) {
+            fprintf(stderr, "Erreur de connexion à %s:%i\n", inet_ntoa(serv_add.sin_addr), serv_add.sin_port);
+            error("Voici l'erreur concernant la connexion ");
+        }
+        
+        i--;
+    }
+    
+    if (conn == -1) {
+        fprintf(stderr, "Erreur de connexion à %s:%i après %i essais\n", inet_ntoa(serv_add.sin_addr), serv_add.sin_port, n);
+        error("Voici l'erreur concernant la connexion ");
+    }
+    
+    return conn;
     
 }
 
