@@ -14,18 +14,19 @@ int main(int argc, char **argv) {
     
 	fprintf(stdout, "[%i] Coucou, mon adresse de base est : %p\n", DSM_NODE_ID, pointer);
 
-	if (DSM_NODE_ID == 0) {
-        current += 4*sizeof(int);
-        value = *((int *)current);
-        fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
-	} 
-	else if (DSM_NODE_ID == 1) {
-        current += 2*PAGE_SIZE;
-        current += 16*sizeof(int);
+    // TODO : Temporairement arrêté
+	//~ if (DSM_NODE_ID == 0) {
+        //~ current += 4*sizeof(int);
+        //~ value = *((int *)current);
+        //~ fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
+	//~ } 
+	//~ else if (DSM_NODE_ID == 1) {
+        //~ current += 2*PAGE_SIZE;
+        //~ current += 16*sizeof(int);
 
-        value = *((int *)current);
-        fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
-	}
+        //~ value = *((int *)current);
+        //~ fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
+	//~ }
 	
 	dsm_finalize();
 	return 1;

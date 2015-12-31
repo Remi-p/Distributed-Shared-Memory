@@ -107,23 +107,28 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
 
         if (pid == 0) { /* fils */    
             
-            //~ // Inutile pour le fils :
-            close(fd_to_close[0]);
-            close(fd_to_close[1]);
+            // Utile uniquement en développement (permet de ne pas redi
+            // -riger les sorties)
+            if (true) {
+                            
+                // Inutile pour le fils :
+                close(fd_to_close[0]);
+                close(fd_to_close[1]);
 
-            /* redirection stdout */
-            close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
+                /* redirection stdout */
+                close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
 
-            close(STDOUT_FILENO);// On remplace stdout par fd[1]
-            dup(fd_stdout[1]);
-            close(fd_stdout[1]);
+                close(STDOUT_FILENO);// On remplace stdout par fd[1]
+                dup(fd_stdout[1]);
+                close(fd_stdout[1]);
 
-            /* redirection stderr */      
-            close(fd_stderr[0]);
+                /* redirection stderr */      
+                close(fd_stderr[0]);
 
-            close(STDERR_FILENO);
-            dup(fd_stderr[1]);
-            close(fd_stderr[1]);
+                close(STDERR_FILENO);
+                dup(fd_stderr[1]);
+                close(fd_stderr[1]);
+            }
 
             /* ====================================================== *\
                      Creation du tableau d'arguments pour le ssh 

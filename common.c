@@ -111,6 +111,20 @@ int get_pos_from_fd(dsm_proc_t* process, int nb_process, int fd) {
     return -1;
 }
 
+// Retourne true si tous les processus sont prêt à s'auto-détruire
+bool shutdown_ready(dsm_proc_t* process, int nb_process) {
+	
+	int i;
+	
+	for (i = 0; i < nb_process; i++) {
+		if (process[i].connect_info.shutdown_ready == false)
+			return false;
+	}
+	
+	return true;
+	
+}
+
 // Fonction généraliste pour déplacer un tableau en prenant la place
 // d'une des cellules
 void remove_any(void *array, int length, int size, int pos) {
@@ -235,6 +249,11 @@ void gdb_stop() {
 // Fonction d'erreur
 void error(const char *msg) {
     perror(msg);
+    
+    // fflush pour tout afficher
+    fflush(stdout);
+    fflush(stdin);
+    
     exit(1);
 }
 

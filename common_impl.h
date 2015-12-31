@@ -35,6 +35,13 @@
 /* autres includes (eventuellement) */
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}
 
+// Pr la phase de développement
+#define FFLUSH fflush(stdout); fflush(stderr);
+
+typedef char bool;
+    #define true 1
+    #define false 0
+    
 /* definition du type des infos */
 /* de connexion des processus dsm */
 struct dsm_proc_conn  {
@@ -42,6 +49,7 @@ struct dsm_proc_conn  {
    int socket;
    u_short port;
    char * machine_name;
+   bool shutdown_ready;
    /* a completer */
 };
 typedef struct dsm_proc_conn dsm_proc_conn_t; 
@@ -55,10 +63,6 @@ struct dsm_proc {
   dsm_proc_conn_t connect_info;
 };
 typedef struct dsm_proc dsm_proc_t;
-
-typedef char bool;
-    #define true 1
-    #define false 0
 
 // Affiche une ligne jusqu'à l'EOF ou une nouvelle ligne
 // Puis ajoute une ligne & flush out
@@ -89,6 +93,9 @@ void remove_any(void *array, int length, int size, int pos);
 
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
+
+// Retourne true si tous les processus sont prêt à s'auto-détruire
+bool shutdown_ready(dsm_proc_t* process, int nb_process);
 
 // Affiche un texte souligné + saute une ligne
 void underlined(char *text, ...);

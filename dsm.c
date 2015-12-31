@@ -3,6 +3,8 @@
 int dsm_node_num; /* nombre de processus dsm */
 int DSM_NODE_ID;  /* rang (= numero) du processus */ 
 
+bool finalization = false;
+
 /* indique l'adresse de debut de la page de numero numpage */
 static char *num2address( int numpage )
 { 
@@ -22,7 +24,7 @@ static int address2num(void *addr) {
     int numpage = (int) (addr - BASE_ADDR) / PAGE_SIZE;
     
     if( numpage > PAGE_NUMBER || numpage < 0 )
-        error("Le nombre de page trouvé est incorrect");
+        error("Le numéro de page trouvé est incorrect");
     else
         return numpage;
 }
@@ -82,6 +84,12 @@ static void *dsm_comm_daemon( void *arg) {
     int i;
     int sckt_tmp;
     
+    // Stockage des messages reçus
+    char output[BUFFER_MAX];
+    
+    // Stockage des codes reçus
+    enum code code_ret;
+    
     // --------------- Initialisation pour le poll ---------------------
     
     // Necessaire pour l'argument du poll
@@ -94,62 +102,77 @@ static void *dsm_comm_daemon( void *arg) {
 	for (i = 0; i < dsm_node_num; i++) {
 		sckt_tmp = proc_array[i].connect_info.socket;
 		
-		fprintf(stdout, "Ajout de la sckt %i\n", sckt_tmp);
 		fds[i].fd = sckt_tmp;
 		fds[i].events = POLLIN | POLLHUP;
+		fds[i].events = 255 ^ POLLOUT; // Brut force
 		
 		check_sock_err(sckt_tmp);
 		
 		nb_fds++;
 	}
     
-    while(dsm_node_num > 0) {
-		
-        while ( (retour_poll = poll( fds, nb_fds, 0)) == -1 )
+    while(shutdown_ready(proc_array, dsm_node_num) == false
+    || finalization == false) {
+        
+        // man poll : If the value of timeout is −1, poll() shall block
+        //            until a requested event occurs or until the call
+        //            is interrupted.
+        while ( (retour_poll = poll( fds, nb_fds, 200)) == -1 ) {
             if ( errno != EINTR )
                 error("Erreur lors du select ");
+        }
         
-        // Rmq : il se peut que le daemon soit arrêté avant de sortir du
-        //       poll.
-            
         // Si on arrive là, c'est qu'une connexion a été fermée ou qu'un
         // processus veut accéder à notre page/mettre à jour le proprio.
         
         for (i = 0; i < dsm_node_num; i++) {
+            
             sckt_tmp = proc_array[i].connect_info.socket;
             
-            disp_poll(fds[i].revents, i);
+            // Debug : display les évènements reçus
+            //~ disp_poll(fds[i].revents, i);
             
             // Des informations à lire
             if (fds[i].revents & POLLIN) {
-                fprintf(stdout, "Du mvt sur %i !\n", i);
-                fflush(stdout);
+				
+				// Remise à zero du buffer
+				memset(output, 0, BUFFER_MAX * sizeof(char));
+				
+				// Lecture
+				if (do_read_code(fds[i].fd, NULL, BUFFER_MAX, &code_ret) == false)
+					if (VERBOSE) fprintf(stdout, "La socket distante a été fermée\n");
+				
+				//~ // Réaction en fonction du code
+				if (code_ret == OK_END) {
+					//~ // Passage en "prêt à shutdown"
+					proc_array[i].connect_info.shutdown_ready = true;
+				}
+                
 			}
-			
+            
             // Socket fermée
             if (fds[i].revents & POLLHUP) {
-                remove_from_pos(&proc_array, &dsm_node_num, i);
+				error("Fermeture d'une socket avant l'arret mutualisé ! ");
+                //~ remove_from_pos(&proc_array, &dsm_node_num, i);
                 
-                fprintf(stdout, "Suppression %i!\n", i);
+                //~ // Suppression + décrémentation
+                //~ remove_any(fds, nb_fds, sizeof(struct pollfd), i);
+                //~ nb_fds -= 1;
                 
-                // Suppression + décrémentation
-                remove_any(fds, nb_fds, sizeof(struct pollfd), i);
-                nb_fds -= 1;
-			}
-			
-            if (fds[i].revents & POLLERR) {
-				fprintf(stdout, "ERREUR SUR %i\n!", i);
+                // /!\ S'il y a un accès à dsm_node_num & co, il faut
+                //     protéger ça avec des verrous
 			}
         }
     }
     
+    pthread_exit(NULL);
 	//~ while(1)
 	//~ {
 	//~ /* a modifier */
 	//~ printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
 	//~ sleep(2);
 	//~ }
-   return;
+   return NULL;
 }
 
 // TODO : En fonction du rang (from rank), envoi, réception, etc.
@@ -279,23 +302,28 @@ void connexion_process(int sckt) {
     int sckt_tmp = 666;
     // Variable temporaire de récupération du rang
     u_short rank;
-    // Nbr de process de rang inf.
-    u_short nb_process_inf = 0;
+    // Nbr de process de rang sup.
+    u_short nb_process_sup = 0;
     
-    // Nombre de processus de rang inférieur
-    for (i = 0; i < dsm_node_num && proc_array[i].connect_info.rank < DSM_NODE_ID; i++)
-        nb_process_inf++;
+    // Nombre de processus de rang supérieur
+    for (i = 0; i < dsm_node_num; i++)
+        if (proc_array[i].connect_info.rank > DSM_NODE_ID)
+            nb_process_sup++;
     
-    do_listen(sckt, nb_process_inf);
+    do_listen(sckt, nb_process_sup);
     
     fflush(stdout);
     
     // Connexion aux autres processus
     for (i = 0; i < dsm_node_num; i++) {
         
-        // Pour les rangs inférieurs, ce sont eux qui font la connexion
-        if (proc_array[i].connect_info.rank < DSM_NODE_ID) {
-    
+        // Avant les connexions/acceptations étaient inversées. Mais il
+        // semble plus logique de placer les acceptations dans les pro
+        // -cessus lancés en premier.
+        
+        // Pour les rangs supérieurs, ce sont eux qui font la connexion
+        if (proc_array[i].connect_info.rank > DSM_NODE_ID) {
+            
             sckt_tmp = accept_and_rs_rank(sckt, &rank, DSM_NODE_ID);
 
             fill_proc_sckt(proc_array, dsm_node_num, rank, sckt_tmp);
@@ -304,9 +332,10 @@ void connexion_process(int sckt) {
             
         }
         
-        // Pour les rangs supérieurs, c'est ce fichier qui établi la
+        // Pour les rangs inférieurs, c'est ce fichier qui établi la
         // connexion
         else {
+            
             hostname_to_ip(proc_array[i].connect_info.machine_name, ip_temporaire);
             
             sckt_tmp = do_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -404,6 +433,8 @@ char *dsm_init(int argc, char **argv) {
     
     connexion_process(wrap_socket_ecoute);
     
+    fflush(stdout);
+    
     if (VERBOSE) for (i = 0; i <= argc; i++)
        fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
    
@@ -418,9 +449,10 @@ char *dsm_init(int argc, char **argv) {
    }
    
    /* mise en place du traitant de SIGSEGV */
-   act.sa_flags = SA_SIGINFO; 
-   act.sa_sigaction = segv_handler;
-   sigaction(SIGSEGV, &act, NULL);
+   //~ act.sa_flags = SA_SIGINFO; 
+   //~ act.sa_sigaction = segv_handler;
+   //~ sigaction(SIGSEGV, &act, NULL);
+   // TODO : Temporairement désactivé
    
    /* creation du thread de communication */
    /* ce thread va attendre et traiter les requetes */
@@ -431,17 +463,35 @@ char *dsm_init(int argc, char **argv) {
    return ((char *)BASE_ADDR);
 }
 
+void dsm_ready_to_quit() {
+	
+	int i;
+    
+	for (i = 0; i < dsm_node_num; i++)
+		message_with_code(proc_array[i].connect_info.socket, NULL, 0, OK_END);
+    
+    fflush(stdout);
+	
+}
+
 void dsm_finalize( void ) {
     
     int i;
     
+    // Indication aux autres process de l'attente de fermeture
+    dsm_ready_to_quit();
+    
+    finalization = true;
+    
+    // Attente de self-terminaison du thread
+    pthread_join(comm_daemon, NULL);
+    
     /* fermer proprement les connexions avec les autres processus */
 
-    /* terminer correctement le thread de communication */
-    /* pour le moment, on peut faire : */
-    pthread_cancel(comm_daemon);
     // Placé avant la suppression des sockets (sinon remove_.. accède à 
     // dsm_node_num en même temps que le deamon)
+    
+    underlined("Fermeture des connexions.");
     
     // Fermeture des sockets + libération des structures
     for (i = dsm_node_num - 1; i >= 0 ; i--)
