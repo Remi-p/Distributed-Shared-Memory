@@ -179,8 +179,8 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
         
     }
     
-    fprintf(stderr, "Rank %i not found\n", rank);
-    error("");
+    fprintf(stderr, "Rank %i not found", rank);
+    error(" (remove_from_rank) ");
 }
 
 // Retourne la socket correspondant au rang
@@ -192,8 +192,8 @@ int get_sckt_from_rank(dsm_proc_t* process, int nb_process, int rank) {
         if (process[i].connect_info.rank == rank)
             return process[i].connect_info.socket;
     
-    fprintf(stderr, "Rank %i not found\n", rank);
-    error("");
+    fprintf(stderr, "Rank %i not found", rank);
+    error(" (get_sckt_from_rank) ");
     return -1; // <= non exécuté
 }
 

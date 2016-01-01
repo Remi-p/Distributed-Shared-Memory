@@ -118,6 +118,16 @@ static void dsm_recv(void *buf) {
     
 }
 
+// Pareil que dsm_give_owner mais à un processus spécifique
+void dsm_give_owner_to(int dest, int pagenumber) {
+    
+    int infos[2]; // Numéro de page + Propriétaire
+    infos[0] = pagenumber;
+    infos[1] = get_owner(pagenumber);
+    
+    message_with_code(dest, infos, sizeof(int)*2, NOK_PAGE_OWNER);
+}
+
 // Indique le nouveau propriétaire d'une page
 void dsm_give_owner(int pagenumber) {
 	
@@ -212,34 +222,37 @@ static void *dsm_comm_daemon( void *arg) {
                     case OK_END:
                         //~ // Passage en "prêt à shutdown"
                         proc_array[i].connect_info.shutdown_ready = true;
-                        fprintf(stdout, "OK_END par %i\n", proc_array[i].connect_info.rank);
+                        
+                        if (VERBOSE) fprintf(stdout, "OK_END par %i\n", proc_array[i].connect_info.rank);
+                        
                         break;
+                        
                     case OK_ASK_PAGE:
                         if (do_read(fds[i].fd, &page_number, sizeof(int)) == false)
                             break;
                         
-                        fprintf(stdout, "On nous demande la page n°%i (par %i)\n", page_number, proc_array[i].connect_info.rank);
+                        if (VERBOSE) fprintf(stdout, "On nous demande la page n°%i (par %i)\n", page_number, proc_array[i].connect_info.rank);
                         
                         if (get_owner(page_number) != DSM_NODE_ID) {
-                            // TODO : Vérification (est-ce qu'on demande
-                            // bien à la bonne personne ?)
-                            fprintf(stdout, "Mais .. Ce n'est pas nous le proprio !\n");
+                            
+                            if (VERBOSE) fprintf(stdout, "Réception d'une demande ne nous concernant pas.\n");
+                            
+                            // On envoie le propriétaire réel
+                            dsm_give_owner_to(proc_array[i].connect_info.socket, page_number);
                         }
-                        
-                        // Changement interne du numéro de propriétaire
-                        dsm_change_info(page_number, NO_CHANGE, proc_array[i].connect_info.rank);
-                        
-                        fprintf(stdout, "Envoi nv proprio\n");
-                        // Envoie au nouveau proprio. de la page
-                        dsm_send(proc_array[i].connect_info.socket, page_number);
-                        
-                        fprintf(stdout, "Partage nv proprio\n");
-                        // Partage du nouveau proprio. aux autres process
-                        dsm_give_owner(page_number);
-                        
-                        fprintf(stdout, "Libération page\n");
-                        // Libération de la page
-                        dsm_free_page(page_number);
+                        else {
+                            // Changement interne du numéro de propriétaire
+                            dsm_change_info(page_number, NO_CHANGE, proc_array[i].connect_info.rank);
+                            
+                            // Envoie au nouveau proprio. de la page
+                            dsm_send(proc_array[i].connect_info.socket, page_number);
+                            
+                            // Partage du nouveau proprio. aux autres process
+                            dsm_give_owner(page_number);
+                            
+                            // Libération de la page
+                            dsm_free_page(page_number);
+                        }
                         break;
                         
                     case OK_PAGE_OWNER:
@@ -247,7 +260,7 @@ static void *dsm_comm_daemon( void *arg) {
                         if (do_read(fds[i].fd, page_owner, sizeof(int)*2) == false)
                             break;
                             
-                        fprintf(stdout, "Attribution du propriétaire de rang %i de la page %i, par %i\n", page_owner[1], page_owner[0], proc_array[i].connect_info.rank);
+                        if (VERBOSE) fprintf(stdout, "Attribution du propriétaire de rang %i de la page %i, par %i\n", page_owner[1], page_owner[0], proc_array[i].connect_info.rank);
                         
                         // Mise à jour uniquement si on est pas concerné
                         // (sinon la MaJ se fera avec réception de la
@@ -263,7 +276,7 @@ static void *dsm_comm_daemon( void *arg) {
                         if (do_read(fds[i].fd, recv_page, PAGE_SIZE + sizeof(int)) == false)
                             break;
                             
-                        fprintf(stdout, "Réception d'une page envoyée par %i\n", proc_array[i].connect_info.rank);
+                        if (VERBOSE) fprintf(stdout, "Réception d'une page envoyée par %i\n", proc_array[i].connect_info.rank);
                         
                         dsm_recv(recv_page);
                         
@@ -311,25 +324,30 @@ static void *dsm_comm_daemon( void *arg) {
 static void dsm_handler( int page_number )
 {  
     /* A modifier */
-    printf("[%i] FAULTY  ACCESS sur la page %i de l'utilisateur %i !!! \n", DSM_NODE_ID, page_number, get_owner(page_number));
+    printf("[%i] Accès interdit sur la page %i de l'utilisateur %i ; envoi d'une demande ... \n", DSM_NODE_ID, page_number, get_owner(page_number));
     
-    int rank = get_owner(page_number);
-
-    // Demande du numéro de page
-    message_with_code(get_sckt_from_rank(proc_array, dsm_node_num, rank), &page_number, sizeof(int), OK_ASK_PAGE);
+    // Rang du propriétaire de la page
+    int rank;
     
-    fprintf(stdout, "Envoi d'une demande pour la page %i au processus %i\n", page_number, get_owner(page_number));
-    
-    FFLUSH
-
-    // On attend que le daemon ai reçu notre page adorée
-    while (get_owner(page_number) != DSM_NODE_ID) {
-        //~ sleep(1);
-        // TODO : Trouver une solution ...
-    }
+    // On boucle, comme ça si le propriétaire change mais que ce n'est
+    // toujours pas nous, il y a une nouvelle demande
+    do {
+        int rank = get_owner(page_number);
+        
+        if (rank == DSM_NODE_ID)
+            break;
+        
+        // Demande du numéro de page
+        message_with_code(get_sckt_from_rank(proc_array, dsm_node_num, rank), &page_number, sizeof(int), OK_ASK_PAGE);
+        
+        // Attente de changement de propriétaire
+        while (get_owner(page_number) == rank) {
+            //~ sleep(1);
+            // TODO : Trouver une solution ...
+        }
+    } while (rank != DSM_NODE_ID);
     
     // Et on peut tranquillement continuer notre exécution
-    // TODO
 }
 
 /* traitant de signal adequat */

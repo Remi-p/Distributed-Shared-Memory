@@ -16,14 +16,16 @@ int main(int argc, char **argv) {
 
 	if (DSM_NODE_ID == 0) {
         current += 4*sizeof(int);
+        *((int *)current) = 42;
         value = *((int *)current);
+        
         fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
 	} 
 	else if (DSM_NODE_ID == 1) {
-        current += 5*PAGE_SIZE;
-        current += 16*sizeof(int);
-
+        //~ current += 5*PAGE_SIZE;
+        current += 4*sizeof(int);
         value = *((int *)current);
+        
         fprintf(stdout, "[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
 	}
 	
