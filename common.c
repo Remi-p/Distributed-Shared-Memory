@@ -183,6 +183,20 @@ void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank) {
     error("");
 }
 
+// Retourne la socket correspondant au rang
+int get_sckt_from_rank(dsm_proc_t* process, int nb_process, int rank) {
+    
+    int i;
+    
+    for (i = 0; i < nb_process; i++)
+        if (process[i].connect_info.rank == rank)
+            return process[i].connect_info.socket;
+    
+    fprintf(stderr, "Rank %i not found\n", rank);
+    error("");
+    return -1; // <= non exécuté
+}
+
 /* compte le nombre de processus a lancer */
 int count_process_nb(char * machine_file) {
     

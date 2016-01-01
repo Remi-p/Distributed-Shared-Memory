@@ -12,20 +12,26 @@
     enum ok_code_type {
         ANY_OK,
         ASK_PAGE,
-        GIVE_PAGE_OWNER,
+        SEND_PAGE,
+        GIVE_PAGE_OWN_OK,
         END_WORK
     };
 
     enum nok_code_type {
-        ANY_NOK
+        ANY_NOK,
+        GIVE_PAGE_OWN_NOK
     };
 
     enum code {
-        OK_ANY          = ANY_OK          | (REPONSE_OK << 6),
-        OK_ASK_PAGE     = ASK_PAGE        | (REPONSE_OK << 6),
-        OK_PAGE_OWNER   = GIVE_PAGE_OWNER | (REPONSE_OK << 6),
-        OK_END          = END_WORK        | (REPONSE_OK << 6),
-        NOK_ANY         = ANY_NOK         | (REPONSE_NOK << 6)
+        OK_ANY          = ANY_OK           | (REPONSE_OK << 6),
+        OK_ASK_PAGE     = ASK_PAGE         | (REPONSE_OK << 6),
+        OK_SEND_PAGE    = SEND_PAGE        | (REPONSE_OK << 6),
+        OK_PAGE_OWNER   = GIVE_PAGE_OWN_OK | (REPONSE_OK << 6),
+        OK_END          = END_WORK         | (REPONSE_OK << 6),
+        NOK_ANY         = ANY_NOK          | (REPONSE_NOK << 6),
+        NOK_PAGE_OWNER  = GIVE_PAGE_OWN_NOK| (REPONSE_NOK << 6)
+        // \_ Pour le moment similaire à OK_PAGE_OWNER, mais envoyé quand
+        //    on se trombe de proprio
     };
 // ---------------------------------------------------------------------
 

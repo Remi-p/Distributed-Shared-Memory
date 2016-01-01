@@ -5,6 +5,10 @@ int DSM_NODE_ID;  /* rang (= numero) du processus */
 
 bool finalization = false;
 
+// Variable permettant l'attente de réception d'une page
+//~ pthread_cond_t wait_page;
+// Inutile sans mutex?
+
 /* indique l'adresse de debut de la page de numero numpage */
 static char *num2address( int numpage )
 { 
@@ -23,8 +27,10 @@ static int address2num(void *addr) {
     // (Équation ..)
     int numpage = (int) (addr - BASE_ADDR) / PAGE_SIZE;
     
-    if( numpage > PAGE_NUMBER || numpage < 0 )
+    if( numpage > PAGE_NUMBER || numpage < 0 ) {
         error("Le numéro de page trouvé est incorrect");
+        return -1; // Non exécuté
+    }
     else
         return numpage;
 }
@@ -77,6 +83,56 @@ static void dsm_free_page( int numpage )
    return;
 }
 
+// Envoi d'une page à la socket renseignée
+static void dsm_send(int dest, int page) {
+    
+    char *page_addr = num2address( page );
+    
+    void *buf = malloc(PAGE_SIZE + sizeof(int));
+    
+    // Attribution du numéro de page au début du buffer
+    *((int* )buf) = page;
+    
+    // Copie des données à envoyer
+    memcpy(buf + sizeof(int), page_addr, PAGE_SIZE);
+    
+    // Envoi du buffer
+    message_with_code(dest, buf, PAGE_SIZE + sizeof(int), OK_SEND_PAGE);
+    
+}
+
+static void dsm_recv(void *buf) {
+   
+    int page_number = *((int *) buf);
+
+    // Décalage pour avoir la page elle même
+    char* recv_page = buf + sizeof(int);
+
+    dsm_alloc_page(page_number);
+
+    // Copie des données reçues
+    memcpy(num2address(page_number), recv_page, PAGE_SIZE);
+    
+    // Mise à jour du propriétaire
+    dsm_change_info(page_number, WRITE, DSM_NODE_ID);
+    
+}
+
+// Indique le nouveau propriétaire d'une page
+void dsm_give_owner(int pagenumber) {
+	
+	int i;
+    
+    int infos[2]; // Numéro de page + Propriétaire
+    infos[0] = pagenumber;
+    infos[1] = get_owner(pagenumber);
+    
+	for (i = 0; i < dsm_node_num; i++)
+        if (proc_array[i].connect_info.rank != infos[1])
+            message_with_code(proc_array[i].connect_info.socket, infos, sizeof(int)*2, OK_PAGE_OWNER);
+    
+}
+
 static void *dsm_comm_daemon( void *arg) {
     
 	// Ici on stockera toutes les sockets des autres processus
@@ -89,6 +145,13 @@ static void *dsm_comm_daemon( void *arg) {
     
     // Stockage des codes reçus
     enum code code_ret;
+    
+    // Stockage des numéros de page demandés
+    int page_number; // OK_ASK_PAGE
+    // Stockage des attributions de propriétaires
+    int page_owner[2]; // OK_PAGE_OWNER
+    // Stockage du n° de page + la page elle-même
+    char* recv_page = malloc(PAGE_SIZE + sizeof(int)); // OK_SEND_PAGE
     
     // --------------- Initialisation pour le poll ---------------------
     
@@ -105,6 +168,7 @@ static void *dsm_comm_daemon( void *arg) {
 		fds[i].fd = sckt_tmp;
 		fds[i].events = POLLIN | POLLHUP;
 		fds[i].events = 255 ^ POLLOUT; // Brut force
+        // TODO \_ enlever ça
 		
 		check_sock_err(sckt_tmp);
 		
@@ -139,19 +203,84 @@ static void *dsm_comm_daemon( void *arg) {
 				memset(output, 0, BUFFER_MAX * sizeof(char));
 				
 				// Lecture
-				if (do_read_code(fds[i].fd, NULL, BUFFER_MAX, &code_ret) == false)
+				if (do_read_code(fds[i].fd, NULL, 0, &code_ret) == false)
 					if (VERBOSE) fprintf(stdout, "La socket distante a été fermée\n");
 				
 				//~ // Réaction en fonction du code
-				if (code_ret == OK_END) {
-					//~ // Passage en "prêt à shutdown"
-					proc_array[i].connect_info.shutdown_ready = true;
-				}
+                switch (code_ret)
+                {
+                    case OK_END:
+                        //~ // Passage en "prêt à shutdown"
+                        proc_array[i].connect_info.shutdown_ready = true;
+                        fprintf(stdout, "OK_END par %i\n", proc_array[i].connect_info.rank);
+                        break;
+                    case OK_ASK_PAGE:
+                        if (do_read(fds[i].fd, &page_number, sizeof(int)) == false)
+                            break;
+                        
+                        fprintf(stdout, "On nous demande la page n°%i (par %i)\n", page_number, proc_array[i].connect_info.rank);
+                        
+                        if (get_owner(page_number) != DSM_NODE_ID) {
+                            // TODO : Vérification (est-ce qu'on demande
+                            // bien à la bonne personne ?)
+                            fprintf(stdout, "Mais .. Ce n'est pas nous le proprio !\n");
+                        }
+                        
+                        // Changement interne du numéro de propriétaire
+                        dsm_change_info(page_number, NO_CHANGE, proc_array[i].connect_info.rank);
+                        
+                        fprintf(stdout, "Envoi nv proprio\n");
+                        // Envoie au nouveau proprio. de la page
+                        dsm_send(proc_array[i].connect_info.socket, page_number);
+                        
+                        fprintf(stdout, "Partage nv proprio\n");
+                        // Partage du nouveau proprio. aux autres process
+                        dsm_give_owner(page_number);
+                        
+                        fprintf(stdout, "Libération page\n");
+                        // Libération de la page
+                        dsm_free_page(page_number);
+                        break;
+                        
+                    case OK_PAGE_OWNER:
+                    case NOK_PAGE_OWNER:
+                        if (do_read(fds[i].fd, page_owner, sizeof(int)*2) == false)
+                            break;
+                            
+                        fprintf(stdout, "Attribution du propriétaire de rang %i de la page %i, par %i\n", page_owner[1], page_owner[0], proc_array[i].connect_info.rank);
+                        
+                        // Mise à jour uniquement si on est pas concerné
+                        // (sinon la MaJ se fera avec réception de la
+                        // page)
+                        if (page_owner[1] != DSM_NODE_ID)
+                            dsm_change_info(page_owner[0], NO_CHANGE, page_owner[1]);
+                            
+                        break;
+                        
+                    case OK_SEND_PAGE:
+                        // Réception d'une page
+                        
+                        if (do_read(fds[i].fd, recv_page, PAGE_SIZE + sizeof(int)) == false)
+                            break;
+                            
+                        fprintf(stdout, "Réception d'une page envoyée par %i\n", proc_array[i].connect_info.rank);
+                        
+                        dsm_recv(recv_page);
+                        
+                        //~ pthread_cond_signal(&wait_page);    
+                        
+                        break;
+                        
+                    default:
+                        error("Code de retour inconnu (dsm_comm_daemon) ");
+                        
+                }
                 
 			}
             
             // Socket fermée
             if (fds[i].revents & POLLHUP) {
+                fprintf(stderr, "[%i] Rang %i:\n", DSM_NODE_ID, proc_array[i].connect_info.rank);
 				error("Fermeture d'une socket avant l'arret mutualisé ! ");
                 //~ remove_from_pos(&proc_array, &dsm_node_num, i);
                 
@@ -162,8 +291,12 @@ static void *dsm_comm_daemon( void *arg) {
                 // /!\ S'il y a un accès à dsm_node_num & co, il faut
                 //     protéger ça avec des verrous
 			}
-        }
+        } // Fin du for de parcours de vérification des desc.
+        
+        FFLUSH
     }
+    
+    free(recv_page);
     
     pthread_exit(NULL);
 	//~ while(1)
@@ -175,27 +308,28 @@ static void *dsm_comm_daemon( void *arg) {
    return NULL;
 }
 
-// TODO : En fonction du rang (from rank), envoi, réception, etc.
-
-static int dsm_send(int dest,void *buf,size_t size)
-{
-   /* a completer */
-}
-
-static int dsm_recv(int from,void *buf,size_t size)
-{
-   /* a completer */
-}
-
 static void dsm_handler( int page_number )
 {  
-   /* A modifier */
-   
-   // Récupération du numéro de page
-   
-   
-   printf("[%i] FAULTY  ACCESS sur la page de l'utilisateur %i !!! \n",DSM_NODE_ID, get_owner(page_number));
-   abort();
+    /* A modifier */
+    printf("[%i] FAULTY  ACCESS sur la page %i de l'utilisateur %i !!! \n", DSM_NODE_ID, page_number, get_owner(page_number));
+    
+    int rank = get_owner(page_number);
+
+    // Demande du numéro de page
+    message_with_code(get_sckt_from_rank(proc_array, dsm_node_num, rank), &page_number, sizeof(int), OK_ASK_PAGE);
+    
+    fprintf(stdout, "Envoi d'une demande pour la page %i au processus %i\n", page_number, get_owner(page_number));
+    
+    FFLUSH
+
+    // On attend que le daemon ai reçu notre page adorée
+    while (get_owner(page_number) != DSM_NODE_ID) {
+        //~ sleep(1);
+        // TODO : Trouver une solution ...
+    }
+    
+    // Et on peut tranquillement continuer notre exécution
+    // TODO
 }
 
 /* traitant de signal adequat */
@@ -360,6 +494,10 @@ void connexion_process(int sckt) {
 char *dsm_init(int argc, char **argv) {
     struct sigaction act;
     int index;
+    
+    // Permettra d'attendre réception des pages dans dsm_comm_daemon
+	//~ pthread_cond_init(&wait_page, NULL);
+    // TODO <= ancien pthread init
    
     //                                               Depuis dsmwrap.c
     /* ============================================================== *\
@@ -449,10 +587,9 @@ char *dsm_init(int argc, char **argv) {
    }
    
    /* mise en place du traitant de SIGSEGV */
-   //~ act.sa_flags = SA_SIGINFO; 
-   //~ act.sa_sigaction = segv_handler;
-   //~ sigaction(SIGSEGV, &act, NULL);
-   // TODO : Temporairement désactivé
+   act.sa_flags = SA_SIGINFO; 
+   act.sa_sigaction = segv_handler;
+   sigaction(SIGSEGV, &act, NULL);
    
    /* creation du thread de communication */
    /* ce thread va attendre et traiter les requetes */
@@ -469,8 +606,6 @@ void dsm_ready_to_quit() {
     
 	for (i = 0; i < dsm_node_num; i++)
 		message_with_code(proc_array[i].connect_info.socket, NULL, 0, OK_END);
-    
-    fflush(stdout);
 	
 }
 

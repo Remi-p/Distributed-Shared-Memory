@@ -239,9 +239,12 @@ bool do_read(int socket, void *output, int taille) {
         
         offset = recv(socket, pointeur_dyn, taille, 0);
     
-        if (offset < 0)
-            error("Il y a une erreur de lecture ");
-            // TODO => Gestion des erreurs lorsque socket disconnected ?
+        if (offset < 0) {
+            if (errno == ECONNRESET)
+                return false;
+            else
+                error("Il y a une erreur de lecture ");
+        }
         
         pointeur_dyn += offset;
         taille -= offset;
@@ -269,14 +272,13 @@ bool do_read_code(int socket, void *output, int taille, enum code* code_ret) {
     if (do_read(socket, msg_received, taille+1) == false)
         return false;
     
-    // On enregistre le code de retour dans code_ret, et on copie la
-    // chaîne reçue dans output    
+    // On enregistre le code de retour dans code_ret
     if (code_ret != NULL)
         *code_ret = (enum code) msg_received[0];
     
     // On peut utiliser do_read_code pour lire uniquement le code
     if (output != NULL)
-        memcpy(output, msg_received + 1, taille);
+        memcpy(output, msg_received + 1, taille-1);
     
     free(msg_received);
     
@@ -306,17 +308,13 @@ void handle_message(int socket, const void *input, int taille) {
 // Pareil que handle_message, avec une gestion d'un code pr les msg
 void message_with_code(int socket, const void *input, int taille, enum code code_ret) {
     
-    int taille_input;
-    if (input != NULL) taille_input = strlen(input);
-    else               taille_input = 0;
-    
     // Ajout du code de retour
-    char str[taille_input + 1];
+    char str[taille + 1];
     taille++;
     
     str[0] = (char) code_ret;
     
-    if (input != NULL) memcpy(str + 1, input, strlen(input));
+    if (input != NULL) memcpy(str + 1, input, taille);
     
     handle_message(socket, str, taille);
 }

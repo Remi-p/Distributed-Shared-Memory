@@ -80,6 +80,13 @@ void remove_from_pos(dsm_proc_t** process, int* nb_process, int i);
 // Enlève un élément du tableau de processus
 void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
+// Retourne la socket correspondant au rang
+int get_sckt_from_rank(dsm_proc_t* process, int nb_process, int rank);
+
+// Fonction généraliste pour déplacer un tableau en prenant la place
+// d'une des cellules
+void remove_any(void *array, int length, int size, int pos);
+
 // Segmentation fault
 void gdb_stop();
     
@@ -89,13 +96,6 @@ dsm_proc_t* machine_names(char * name_file, int process_nb);
 
 /* compte le nombre de processus à lancer */
 int count_process_nb(char * machine_file);
-
-// Fonction généraliste pour déplacer un tableau en prenant la place
-// d'une des cellules
-void remove_any(void *array, int length, int size, int pos);
-
-// Enlève un élément du tableau de processus
-void remove_from_rank(dsm_proc_t** process, int* nb_process, int rank);
 
 // Retourne true si tous les processus sont prêt à s'auto-détruire
 bool shutdown_ready(dsm_proc_t* process, int nb_process);
