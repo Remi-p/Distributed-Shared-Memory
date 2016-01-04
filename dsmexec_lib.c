@@ -110,10 +110,14 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
             // Utile uniquement en développement (permet de ne pas redi
             // -riger les sorties)
             if (true) {
-                            
-                // Inutile pour le fils :
-                close(fd_to_close[0]);
-                close(fd_to_close[1]);
+                
+                // Problème à gérer ; le premier processus n'a pas à
+                // fermer de descripteurs
+                if (*num_procs_creat > 0) {
+					// Inutile pour le fils :
+					close(fd_to_close[0]);
+					close(fd_to_close[1]);
+				}
 
                 /* redirection stdout */
                 close(fd_stdout[0]); // Fermeture de l'extrémité inutilisée
@@ -158,7 +162,7 @@ char* ip, u_short port_num, int argc, char *argv[], volatile int *num_procs_crea
             if (execvp("ssh", newargv) == -1)
                 error("Erreur lors de l'exécution ssh ");
 
-        } else  if(pid > 0) { /* pere */
+        } else if(pid > 0) { /* pere */
             
             /* fermeture des extremites des tubes non utiles */
             // Fermeture de l'extremité d'écriture, puisqu'on souhaite lire.
@@ -269,16 +273,16 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
     if (VERBOSE) bold("\n== Ajout des tubes du processus au poll\n");
 
     for (i = 0; i < *num_procs ; i++) {
-        // stdout
-        fds[2*i].fd = (*proc_array)[i].stdout;
-        fds[2*i].events = POLLIN | POLLHUP;
-         
         // stderr
         fds[2*i+1].fd = (*proc_array)[i].stderr;
         fds[2*i+1].events = POLLIN | POLLHUP;
         
-        if (VERBOSE) fprintf(stdout, "(i=%i) : %i & %i\n",
-                            i, (*proc_array)[i].stderr, (*proc_array)[i].stdout);
+        // stdout
+        fds[2*i].fd = (*proc_array)[i].stdout;
+        fds[2*i].events = POLLIN | POLLHUP;
+        
+        if (VERBOSE) fprintf(stdout, "(i=%i) : %i (err) & %i (out)\n",
+                            i, fds[2*i+1].fd, fds[2*i].fd);
         
         nb_tubes += 2;
     }
@@ -297,7 +301,15 @@ void affichage_tubes(int *num_procs, dsm_proc_t **proc_array) {
         if (VERBOSE) bold("\n== Boucle for d'affichage, %i process\n", *num_procs);
         
         // Le poll à réussi :
-        for (i = 0; i < *num_procs ; i++) {
+        for (i = *num_procs - 1; i >= 0 ; i--) {
+			
+			if (VERBOSE) {
+				if (disp_poll(fds[2*i].revents, 2*i) == true)
+					fprintf(stdout, "\t\\_ STDOUT\n");
+					
+				if (disp_poll(fds[2*i+1].revents, 2*i+1) == true)
+					fprintf(stdout, "\t\\_ STDERR\n");
+			}
     
             if (fds[2*i].revents & POLLIN) {
                 

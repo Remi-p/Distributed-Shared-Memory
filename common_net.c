@@ -364,29 +364,53 @@ int hostname_to_ip(char * hostname , char* ip)
     return 1;
 }
 
-// Liste les évènements poll survenus
-void disp_poll(short revents, int pos) {
+// Liste les évènements poll survenus. Renvoi true s'il y en a au moins un
+bool disp_poll(short revents, int pos) {
+	
+	bool found = false;
     
-    if (revents & POLLIN)
+    if (revents & POLLIN) {
         fprintf(stdout, "(%i)POLLIN\n", pos);
-    if (revents & POLLRDNORM)
+        found = true;
+	}
+    if (revents & POLLRDNORM) {
         fprintf(stdout, "(%i)POLLRDNORM\n", pos);
-    if (revents & POLLRDBAND)
+        found = true;
+	}
+    if (revents & POLLRDBAND) {
         fprintf(stdout, "(%i)POLLRDBAND\n", pos);
-    if (revents & POLLPRI)
+        found = true;
+	}
+    if (revents & POLLPRI) {
         fprintf(stdout, "(%i)POLLPRI\n", pos);
-    if (revents & POLLOUT)
+        found = true;
+	}
+    if (revents & POLLOUT) {
         fprintf(stdout, "(%i)POLLOUT\n", pos);
-    if (revents & POLLWRNORM)
+        found = true;
+	}
+    if (revents & POLLWRNORM) {
         fprintf(stdout, "(%i)POLLWRNORM\n", pos);
-    if (revents & POLLWRBAND)
+        found = true;
+	}
+    if (revents & POLLWRBAND) {
         fprintf(stdout, "(%i)POLLWRBAND\n", pos);
-    if (revents & POLLERR)
+        found = true;
+	}
+    if (revents & POLLERR) {
         fprintf(stdout, "(%i)POLLERR\n", pos);
-    if (revents & POLLHUP)
+        found = true;
+	}
+    if (revents & POLLHUP) {
         fprintf(stdout, "(%i)POLLHUP\n", pos);
-    if (revents & POLLNVAL)
+        found = true;
+	}
+    if (revents & POLLNVAL) {
         fprintf(stdout, "(%i)POLLNVAL\n", pos);
+        found = true;
+	}
+	
+	return found;
         
 }
 

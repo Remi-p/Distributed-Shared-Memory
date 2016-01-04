@@ -33,7 +33,7 @@
 #define NAME_MAX 25
 
 // Nombre de tentative de connexion
-#define N_CONNECT 10
+#define N_CONNECT 100
 
 /* autres includes (eventuellement) */
 #define ERROR_EXIT(str) {perror(str);exit(EXIT_FAILURE);}

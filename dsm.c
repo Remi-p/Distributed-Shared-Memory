@@ -5,13 +5,9 @@ int DSM_NODE_ID;  /* rang (= numero) du processus */
 
 bool finalization = false;
 
-// Variable permettant l'attente de réception d'une page
-//~ pthread_cond_t wait_page;
-// Inutile sans mutex?
-
 /* indique l'adresse de debut de la page de numero numpage */
 static char *num2address( int numpage )
-{ 
+{
    char *pointer = (char *)(BASE_ADDR+(numpage*(PAGE_SIZE)));
    
    if( pointer >= (char *)TOP_ADDR ){
@@ -177,8 +173,6 @@ static void *dsm_comm_daemon( void *arg) {
 		
 		fds[i].fd = sckt_tmp;
 		fds[i].events = POLLIN | POLLHUP;
-		fds[i].events = 255 ^ POLLOUT; // Brut force
-        // TODO \_ enlever ça
 		
 		check_sock_err(sckt_tmp);
 		
@@ -324,7 +318,7 @@ static void *dsm_comm_daemon( void *arg) {
 static void dsm_handler( int page_number )
 {  
     /* A modifier */
-    printf("[%i] Accès interdit sur la page %i de l'utilisateur %i ; envoi d'une demande ... \n", DSM_NODE_ID, page_number, get_owner(page_number));
+    fprintf(stderr, "[%i] Accès interdit sur la page %i de l'utilisateur %i ; envoi d'une demande ... \n", DSM_NODE_ID, page_number, get_owner(page_number));
     
     // Rang du propriétaire de la page
     int rank;

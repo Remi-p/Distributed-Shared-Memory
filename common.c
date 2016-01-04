@@ -5,7 +5,6 @@
 // Affiche une ligne jusqu'à l'EOF ou une nouvelle ligne
 bool disp_line(FILE* out, int in) {
     
-    // TOASK : Optimisé (par fprintf) ou à optimiser à la main ?
     char c;
     int ret;
     bool first = true;

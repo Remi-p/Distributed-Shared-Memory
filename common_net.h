@@ -82,8 +82,8 @@ void connect_and_sr_rank(int socket, struct sockaddr_in serv_add, u_short *rank,
 // Accepte & réception / envoi du rang. Retourne la socket d'acceptation
 int accept_and_rs_rank(int socket, u_short *rank, u_short self_rank);
 
-// Liste les évènements poll survenus
-void disp_poll(short revents, int pos);
+// Liste les évènements poll survenus. Renvoi true s'il y en a au moins un
+bool disp_poll(short revents, int pos);
 
 // Vérifie s'il y a des erreurs sur la socket
 // http://stackoverflow.com/questions/4142012/how-to-find-the-socket-connection-state-in-c
