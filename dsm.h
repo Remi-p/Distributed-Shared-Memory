@@ -46,8 +46,8 @@ dsm_page_info_t table_page[PAGE_NUMBER];
 // Tableau des structures des processus dsmwrap
 dsm_proc_t *proc_array;
 
-// On ne le protège pas par verrou, cette variable changera de valeurs
-// une seule fois.
+// On ne le protège pas par verrou, cette variable changera de valeur
+// sans problème d'accès (un seul lecteur/un seul écrivain)
 extern bool finalization;
 
 pthread_t comm_daemon;

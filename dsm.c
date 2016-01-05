@@ -1,8 +1,18 @@
+/* ==================== Projet Système et Réseau ==================== *\
+ * Gourdel Thibaut                                          . \|/ /,  *
+ * Perrot Remi            =================                 \\`''/_-- *
+ * PR204                  |     dsm       |          Bordeaux INP --- *
+ * Janvier 2016           | bibliothèque  |          ENSEIRB  ,..\\`  *
+ *                        =================          MATMECA / | \\`  *
+\* ================================================================== */
+
 #include "dsm.h"
 
 int dsm_node_num; /* nombre de processus dsm */
 int DSM_NODE_ID;  /* rang (= numero) du processus */ 
 
+// Utilisé pour l'attente de fin de connexion mutualisé (voir
+// dsm_finalize)
 bool finalization = false;
 
 /* indique l'adresse de debut de la page de numero numpage */
@@ -146,9 +156,6 @@ static void *dsm_comm_daemon( void *arg) {
     int i;
     int sckt_tmp;
     
-    // Stockage des messages reçus
-    char output[BUFFER_MAX];
-    
     // Stockage des codes reçus
     enum code code_ret;
     
@@ -185,7 +192,7 @@ static void *dsm_comm_daemon( void *arg) {
         // man poll : If the value of timeout is −1, poll() shall block
         //            until a requested event occurs or until the call
         //            is interrupted.
-        while ( (retour_poll = poll( fds, nb_fds, 200)) == -1 ) {
+        while ( (retour_poll = poll( fds, nb_fds, -1)) == -1 ) {
             if ( errno != EINTR )
                 error("Erreur lors du select ");
         }
@@ -203,14 +210,11 @@ static void *dsm_comm_daemon( void *arg) {
             // Des informations à lire
             if (fds[i].revents & POLLIN) {
 				
-				// Remise à zero du buffer
-				memset(output, 0, BUFFER_MAX * sizeof(char));
-				
 				// Lecture
 				if (do_read_code(fds[i].fd, NULL, 0, &code_ret) == false)
 					if (VERBOSE) fprintf(stdout, "La socket distante a été fermée\n");
 				
-				//~ // Réaction en fonction du code
+				// Réaction en fonction du code
                 switch (code_ret)
                 {
                     case OK_END:
@@ -274,8 +278,6 @@ static void *dsm_comm_daemon( void *arg) {
                         
                         dsm_recv(recv_page);
                         
-                        //~ pthread_cond_signal(&wait_page);    
-                        
                         break;
                         
                     default:
@@ -300,12 +302,12 @@ static void *dsm_comm_daemon( void *arg) {
 			}
         } // Fin du for de parcours de vérification des desc.
         
-        FFLUSH
     }
     
     free(recv_page);
     
     pthread_exit(NULL);
+    
 	//~ while(1)
 	//~ {
 	//~ /* a modifier */
@@ -315,13 +317,11 @@ static void *dsm_comm_daemon( void *arg) {
    return NULL;
 }
 
-static void dsm_handler( int page_number )
-{  
-    /* A modifier */
+static void dsm_handler( int page_number ) {
     fprintf(stderr, "[%i] Accès interdit sur la page %i de l'utilisateur %i ; envoi d'une demande ... \n", DSM_NODE_ID, page_number, get_owner(page_number));
     
     // Rang du propriétaire de la page
-    int rank;
+    int rank = -1;
     
     // On boucle, comme ça si le propriétaire change mais que ce n'est
     // toujours pas nous, il y a une nouvelle demande
@@ -370,7 +370,6 @@ static void segv_handler(int sig, siginfo_t *info, void *context)
 
     if ((addr >= (void *)BASE_ADDR) && (addr < (void *)TOP_ADDR)) {
         dsm_handler(page_number);
-        // TODO HERE
     }
     else {
     /* SIGSEGV normal : ne rien faire*/
@@ -438,7 +437,7 @@ void recup_info_proc(int sckt) {
         remove_from_rank(&proc_array, &dsm_node_num, rank_to_delete[j]);
 }
 
-// Explosions de connexions
+// Explosion de connexions
 void connexion_process(int sckt) {
     
     int i;
@@ -457,8 +456,6 @@ void connexion_process(int sckt) {
             nb_process_sup++;
     
     do_listen(sckt, nb_process_sup);
-    
-    fflush(stdout);
     
     // Connexion aux autres processus
     for (i = 0; i < dsm_node_num; i++) {
@@ -506,10 +503,6 @@ void connexion_process(int sckt) {
 char *dsm_init(int argc, char **argv) {
     struct sigaction act;
     int index;
-    
-    // Permettra d'attendre réception des pages dans dsm_comm_daemon
-	//~ pthread_cond_init(&wait_page, NULL);
-    // TODO <= ancien pthread init
    
     //                                               Depuis dsmwrap.c
     /* ============================================================== *\
@@ -583,8 +576,6 @@ char *dsm_init(int argc, char **argv) {
     
     connexion_process(wrap_socket_ecoute);
     
-    fflush(stdout);
-    
     if (VERBOSE) for (i = 0; i <= argc; i++)
        fprintf(stdout, "Argv[%i] = %s\n", i, argv[i]);
    
@@ -612,6 +603,8 @@ char *dsm_init(int argc, char **argv) {
    return ((char *)BASE_ADDR);
 }
 
+// Envoi du code OK_END pour indiquer aux processus frères qu'on est
+// prêt à arrêter l'exécution.
 void dsm_ready_to_quit() {
 	
 	int i;
@@ -621,6 +614,8 @@ void dsm_ready_to_quit() {
 	
 }
 
+// Se place en attente de fin, puis une fois que tous les processus sont
+// prêt, ferme les sockets et libère les malloc
 void dsm_finalize( void ) {
     
     int i;
@@ -645,6 +640,7 @@ void dsm_finalize( void ) {
         remove_from_rank(&proc_array, &dsm_node_num, proc_array[i].connect_info.rank);
 
     fflush(stdout);
+    fflush(stderr);
 
     return;
 }

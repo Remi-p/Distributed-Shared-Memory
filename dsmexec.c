@@ -10,13 +10,14 @@
 
 #include "dsmexec_lib.h"
 
-/* variables globales */
+// ------- Variables globales -----------
 
 /* un tableau gerant les infos d'identification des processus dsm */
 dsm_proc_t *proc_array = NULL; 
 
 /* le nombre de processus effectivement crees */
 volatile int num_procs_creat = 0;
+// --------------------------------------
 
 int main(int argc, char *argv[]) {
     
@@ -31,7 +32,6 @@ int main(int argc, char *argv[]) {
         
         // Nombre de processus (depuis le nombre de machine)
         int num_procs;
-        // enum code code_ret; // Code de retour (à gérer)
         
         // Numéro de descripteur de fichier pour la socket d'écoute
         int listen_socket;

@@ -24,7 +24,7 @@
 
 #define VERBOSE 0
 
-#define BUFFER_MAX 5
+#define BUFFER_CHEMIN 1024
 
 // Timeout pour les accepts/connects en secondes
 #define TIMEOUT 1

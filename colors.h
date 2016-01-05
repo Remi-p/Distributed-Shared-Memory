@@ -12,6 +12,8 @@
  *
  *  Created on: Sep 24, 2014
  *      Author: nicolas
+ *  Modified on: Dec 17, 2015
+ *      Authors: tgourdel/rperrot
  */
 
 #ifndef COLORS_H_

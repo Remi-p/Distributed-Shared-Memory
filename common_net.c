@@ -10,7 +10,7 @@ void connect_and_sr_rank(int socket, struct sockaddr_in addr, u_short *rank, u_s
     handle_message(socket, &self_rank, sizeof(u_short));
 
     if(do_read(socket, rank, sizeof(u_short)) == false)
-        error("Socket fermée dans connect_and_sr_rank\n");
+        error("Socket fermée (connect_and_sr_rank)\n");
 
 }
 
@@ -24,7 +24,7 @@ int accept_and_rs_rank(int socket, u_short *rank, u_short self_rank) {
     accept_sckt = do_accept(socket, tmp);
 
     if (do_read(accept_sckt, rank, sizeof(u_short)) == false)
-        error("Socket fermée dans accept_and_rs_rank\n");
+        error("Socket fermée (accept_and_rs_rank)\n");
     
     handle_message(accept_sckt, &self_rank, sizeof(u_short));
     
@@ -32,7 +32,7 @@ int accept_and_rs_rank(int socket, u_short *rank, u_short self_rank) {
     return accept_sckt;
 }
 
-// Display informations on a struct sockaddr_in
+// Affiche des informations d'une struct sockaddr_in
 void addr_verbose(struct sockaddr_in sockaddr, char *env) {
     
     if (env != NULL)
@@ -44,6 +44,7 @@ void addr_verbose(struct sockaddr_in sockaddr, char *env) {
     
 }
 
+// Enregistre l'ip correspondant à l'interface (deprecated)
 void store_ip(char* interface, char ** ip) {
     
     // Pour l'adresse IP à donner aux processus distants, on récupère
@@ -141,7 +142,7 @@ void do_bind(int socket, struct sockaddr_in* serv_add) {
 }
 
 // Demande jusqu'à n fois la connexion
-// (pratique en attendant que tous les processus aient toutes les
+// (pratique, en attendant que tous les processus aient toutes les
 // infos permettant d'effectuer les connexions)
 int do_connect_n(int socket, struct sockaddr_in serv_add, int n) {
     

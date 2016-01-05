@@ -1,6 +1,7 @@
+// Affiche une mini aide lors d'une erreur de saisie de commande
 void usage(void);
 
-// Affiche un text en gras
+// Affiche un texte en gras
 void bold(char *text, ...);
 
 // Gestion de la terminaison des fils
