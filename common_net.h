@@ -31,11 +31,11 @@
         NOK_ANY         = ANY_NOK          | (REPONSE_NOK << 6),
         NOK_PAGE_OWNER  = GIVE_PAGE_OWN_NOK| (REPONSE_NOK << 6)
         // \_ Pour le moment similaire à OK_PAGE_OWNER, mais envoyé quand
-        //    on se trombe de proprio
+        //    on se trompe de proprio
     };
 // ---------------------------------------------------------------------
 
-// Renvoi le numéro de la socket, enregistre le port utilisé dans port_num
+// Renvoie le numéro de la socket, enregistre le port utilisé dans port_num
 int creer_socket(int type, u_short *port_num, char** ip);
 
 // Fonctions fortement inspirées du projet de réseau RE220
