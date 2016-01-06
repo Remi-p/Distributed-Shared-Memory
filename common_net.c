@@ -297,7 +297,7 @@ void handle_message(int socket, const void *input, int taille) {
         offset = send(socket, pointeur_dyn, taille, 0);
         
         if (offset == -1) {
-            error("Voici l'erreur concernant l'envoi ");
+            error("Voici l'erreur concernant l'envoi (handle_message) ");
         }
         
         pointeur_dyn += offset;

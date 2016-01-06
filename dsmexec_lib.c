@@ -263,8 +263,10 @@ void acceptation_connexions(int* num_procs, int listen_socket, dsm_proc_t **proc
     // Si des accepts ne se sont pas fait -> machine eteinte par exple
     // On les supprime du tableau de structure
     for(k=0; k < *num_procs; k++)
-        if((*proc_array)[k].connect_info.socket == 0) 
-            remove_from_rank(proc_array, num_procs, (*proc_array)[k].connect_info.rank) ;
+        if((*proc_array)[k].connect_info.socket == 0)  {
+            remove_from_pos(proc_array, num_procs, k);
+            k--;
+        }
 
 }
 
