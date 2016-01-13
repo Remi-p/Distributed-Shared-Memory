@@ -3,7 +3,7 @@ Projet de Système et Réseau - Implémentation d'une Mémoire Partagée Distrub
 
 *Thibaut Gourdel*, *Rémi Perrot*
 
-Enseirb-Matmeca, T1-G1 - 2015
+Enseirb-Matmeca, T2-G1 - 2016
 
 ## Phase 1 : Lancement des processus
 
